@@ -16,12 +16,14 @@ class BLASTER_API ABlasterPlayerController : public APlayerController
 	
 public:
 	void SetHUDHealth(float Health, float MaxHealth);
+	void SetHUDShield(float Shield, float MaxShield);
 	void SetHUDScore(float Score);
 	void SetHUDDefeats(int32 Defeats);
 	void SetHUDWeaponAmmo(int32 Ammo);
 	void SetHUDCarriedAmmo(int32 Ammo);
 	void SetHUDMatchCountdown(float CountdownTime);
 	void SetHUDAnnouncementCountdown(float CountdownTime);
+	void SetHUDGrenades(int32 Grenades);
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -65,6 +67,9 @@ protected:
 	UFUNCTION(Client, Reliable)
 	void ClientJoinMidgame(FName StateOfMatch, float Warmup, float Match, float Cooldown, float StartingTime);
 
+	void HighPingWarning();
+	void StopHighPingWarning();
+	void CheckPing(float DeltaTime);
 private:
 	UPROPERTY()
 	class ABlasterHUD* BlasterHUD;
@@ -88,8 +93,33 @@ private:
 	class UCharacterOverlay* CharacterOverlay;
 	bool bInitializeCharacterOverlay = false;
 	
+	
 	float HUDHealth;
 	float HUDMaxHealth;
+	bool bInitializeHealth = false;
 	float HUDScore;
+	bool bInitializeScore = false;
 	int32 HUDDefeats;
+	bool bInitializeDefeats = false;
+	//int32 HUDGrenades;
+	//bool bInitializeGrenades = false;
+	float HUDShield;
+	float HUDMaxShield;
+	bool bInitializeShield = false;
+	float HUDCarriedAmmo;
+	bool bInitializeCarriedAmmo = false;
+	float HUDWeaponAmmo;
+	bool bInitializeWeaponAmmo = false;
+
+	float HighPingRunningTime = 0.f;
+	float HighPingAnimationRunningTime = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	float HighPingDuration = 5.f;
+
+	UPROPERTY(EditAnywhere)
+	float CheckPingFrequency = 10.f;
+
+	UPROPERTY(EditAnywhere)
+	float HighPingThreshold = 50.f;
 };

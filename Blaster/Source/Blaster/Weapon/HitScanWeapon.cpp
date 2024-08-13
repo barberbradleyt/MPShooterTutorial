@@ -7,9 +7,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Sound/SoundCue.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "DrawDebugHelpers.h"
 #include "WeaponTypes.h"
+
+#include "DrawDebugHelpers.h"
 
 void AHitScanWeapon::Fire(const FVector& HitTarget)
 {
@@ -83,7 +83,7 @@ void AHitScanWeapon::WeaponTraceHit(const FVector& TraceStart, const FVector& Hi
 
 	if (World)
 	{
-		FVector End = bUseScatter ? TraceEndWithScatter(TraceStart, HitTarget) : TraceStart + (HitTarget - TraceStart) * 1.25f;
+		FVector End = TraceStart + (HitTarget - TraceStart) * 1.25f;
 
 		World->LineTraceSingleByChannel(
 			OutHit,
@@ -96,6 +96,7 @@ void AHitScanWeapon::WeaponTraceHit(const FVector& TraceStart, const FVector& Hi
 		if (OutHit.bBlockingHit)
 		{
 			BeamEnd = OutHit.ImpactPoint;
+
 			if (BeamParticles)
 			{
 				UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(
@@ -111,29 +112,6 @@ void AHitScanWeapon::WeaponTraceHit(const FVector& TraceStart, const FVector& Hi
 				}
 			}
 		}
-
+		DrawDebugSphere(GetWorld(), BeamEnd, 16.f, 12, FColor::Orange, true);
 	}
-}
-
-FVector AHitScanWeapon::TraceEndWithScatter(const FVector& TraceStart, const FVector& HitTarget)
-{
-	FVector ToTargetNormalized = (HitTarget - TraceStart).GetSafeNormal();
-	FVector SphereCenter = TraceStart + ToTargetNormalized * DistanceToSphere;
-	FVector RandVector = UKismetMathLibrary::RandomUnitVector() * FMath::FRandRange(0.f, SphereRadius);
-	FVector EndLocation = SphereCenter + RandVector;
-	FVector ToEndLocation = EndLocation - TraceStart;
-
-	/*
-	DrawDebugSphere(GetWorld(), SphereCenter, SphereRadius, 12, FColor::Red, true);
-	DrawDebugSphere(GetWorld(), EndLocation, 4.f, 12, FColor::Green, true);
-	DrawDebugLine(
-		GetWorld(),
-		TraceStart, 
-		FVector(TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size()),
-		FColor::Cyan,
-		true
-		);
-	*/
-
-	return FVector(TraceStart + ToEndLocation * TRACE_LENGTH / ToEndLocation.Size());
 }

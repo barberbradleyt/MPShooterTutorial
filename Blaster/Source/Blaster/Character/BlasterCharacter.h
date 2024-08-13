@@ -24,6 +24,7 @@ public:
 	void PlayFireMontage(bool bAiming);
 	void PlayReloadMontage();
 	void PlayEliminationMontage();
+	void PlayThrowGrenadeMontage();
 	virtual void OnRep_ReplicatedMovement() override;
 	void Eliminate();
 
@@ -36,6 +37,12 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowSniperScopeWidget(bool bShowScope);
+
+	void UpdateHUDHealth();
+	void UpdateHUDShield();
+	void UpdateHUDAmmo();
+
+	void SpawnDefaultWeapon();
 
 protected:
 	virtual void BeginPlay() override;
@@ -56,13 +63,73 @@ protected:
 	void FireButtonPressed();
 	void FireButtonReleased();
 	void PlayHitReactMontage();
+	void GrenadeButtonPressed();
+	void DropOrDestroyWeapon(AWeapon* Weapon);
+	void DropOrDestroyWeapons();
 
 	UFUNCTION()
 	void ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCauser);
-	void UpdateHUDHealth();
 	// poll for any relevant classes and initialize HUD
 	void PollInit();
 	void RotateInPlace(float DeltaTime);
+
+	/**
+	* Hit boxes used for server-side rewind
+	*/
+
+	UPROPERTY(EditAnywhere)
+	class UBoxComponent* head;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* pelvis;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* spine_02;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* spine_03;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* upperarm_l;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* upperarm_r;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* lowerarm_l;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* lowerarm_r;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* hand_l;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* hand_r;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* backpack;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* blanket;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* thigh_l;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* thigh_r;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* calf_l;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* calf_r;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* foot_l;
+
+	UPROPERTY(EditAnywhere)
+	UBoxComponent* foot_r;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = Camera)
@@ -82,6 +149,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UCombatComponent* Combat;
+
+	UPROPERTY(VisibleAnywhere)
+	class UBuffComponent* Buff;
 
 	UFUNCTION(Server, Reliable)
 	void ServerEquipButtonPressed();
@@ -110,6 +180,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = Combat)
 	UAnimMontage* EliminationMontage;
 
+	UPROPERTY(EditAnywhere, Category = Combat)
+	UAnimMontage* ThrowGrenadeMontage;
+
 	void HideCameraIfCharacterClose();
 
 	UPROPERTY(EditAnywhere)
@@ -135,11 +208,24 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Player Stats")
 	float MaxHealth = 100.f;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_Health, VisibleAnywhere, Category = "Player Stats")
+	UPROPERTY(ReplicatedUsing = OnRep_Health, EditAnywhere, Category = "Player Stats")
 	float Health = 100.f;
 
 	UFUNCTION()
-	void OnRep_Health();
+	void OnRep_Health(float LastHealth);
+
+	/**
+	* Player Shield
+	*/
+	UPROPERTY(EditAnywhere, Category = "Player Stats")
+	float MaxShield = 100.f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Shield, EditAnywhere, Category = "Player Stats")
+	float Shield = 100.f;
+
+	UFUNCTION()
+	void OnRep_Shield(float LastShield);
+
 
 	UPROPERTY()
 	class ABlasterPlayerController* BlasterPlayerController;
@@ -194,6 +280,19 @@ private:
 	UPROPERTY()
 	class ABlasterPlayerState* BlasterPlayerState;
 
+	/**
+	* Grenade
+	*/
+	UPROPERTY(VisibleAnywhere)
+	UStaticMeshComponent* AttachedGrenade;
+
+	/**
+	*  Default Weapon
+	*/
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AWeapon> DefaultWeaponClass;
+
 public:
 	void SetOverlappingWeapon(AWeapon* Weapon);
 	bool IsWeaponEquipped();
@@ -207,8 +306,16 @@ public:
 	FORCEINLINE bool ShouldRotateRootBone() const { return bRotateRootBone; }
 	FORCEINLINE bool isEliminated() const { return bEliminated; }
 	FORCEINLINE float GetHealth() const { return Health; }
+	FORCEINLINE void SetHealth(float Amount) { Health = Amount; }
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
+	FORCEINLINE float GetShield() const { return Shield; }
+	FORCEINLINE void SetShield(float Amount) { Shield = Amount; }
+	FORCEINLINE float GetMaxShield() const { return MaxShield; }
 	ECombatState GetCombatState() const;
 	FORCEINLINE UCombatComponent* GetCombat() const { return Combat; }
 	FORCEINLINE bool GetDisableGameplay() const { return bDisableGameplay; }
+	FORCEINLINE UAnimMontage* GetReloadMontage() const { return ReloadMontage; }
+	FORCEINLINE UStaticMeshComponent* GetAttachedGrenade() const { return AttachedGrenade; }
+	FORCEINLINE UBuffComponent* GetBuff() const { return Buff; }
+	bool IsLocallyReloading();
 };
