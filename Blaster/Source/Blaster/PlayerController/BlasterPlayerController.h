@@ -35,6 +35,7 @@ public:
 	// TODO this can probs be private
 	void HandleMatchHasStarted();
 	void HandleCooldown();
+	float SingleTripTime = 0.f;
 
 protected:
 	virtual void BeginPlay() override;

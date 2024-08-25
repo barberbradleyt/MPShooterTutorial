@@ -408,14 +408,7 @@ void ABlasterCharacter::PostInitializeComponents()
 			GetCharacterMovement()->MaxWalkSpeedCrouched
 		);
 		Buff->SetInitialJumpVelocity(GetCharacterMovement()->JumpZVelocity);
-		try 
-		{
-			Buff->SetInitialMaterial((UMaterialInstance*)GetMesh()->GetMaterial(0));
-		}
-		catch (...) 
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Failed to cast GetMesh()->GetMaterial(0) to UMaterialInstance*"));
-		}
+		Buff->SetInitialMaterial((UMaterialInstance*)GetMesh()->GetMaterial(0));
 	}
 	if (LagCompensation)
 	{
