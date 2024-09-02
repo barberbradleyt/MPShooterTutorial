@@ -68,9 +68,10 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 		TArray<ABlasterCharacter*> HitCharacters;
 		for (auto HitPair : HitMap)
 		{
-			if (HitPair.Key && HasAuthority() && InstigatorController)
+			if (HitPair.Key && InstigatorController)
 			{
-				if (HasAuthority() || !bUseServerSideRewind)
+				bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
+				if (HasAuthority() && bCauseAuthDamage)
 				{
 					UGameplayStatics::ApplyDamage(
 						HitPair.Key, //character that was hit
@@ -80,16 +81,15 @@ void AShotgun::FireShotgun(const TArray<FVector_NetQuantize>& HitTargets)
 						UDamageType::StaticClass()
 					);
 				}
-
-				HitCharacters.Add(HitPair.Key);
+				HitCharacters.Add(HitPair.Key); //TODO: do we always need to add to this list?
 			}	
 		}
 
-		if (!HasAuthority() && bUseServerSideRewind)
+		if (!HasAuthority() && bUseServerSideRewind && OwnerPawn->IsLocallyControlled())
 		{
 			BlasterOwnerCharacter = BlasterOwnerCharacter == nullptr ? Cast<ABlasterCharacter>(OwnerPawn) : BlasterOwnerCharacter;
 			BlasterOwnerController = BlasterOwnerController == nullptr ? Cast<ABlasterPlayerController>(InstigatorController) : BlasterOwnerController;
-			if (BlasterOwnerController && BlasterOwnerCharacter && BlasterOwnerCharacter->GetLagCompensation() && BlasterOwnerCharacter->IsLocallyControlled())
+			if (BlasterOwnerController && BlasterOwnerCharacter && BlasterOwnerCharacter->GetLagCompensation())
 			{
 				BlasterOwnerCharacter->GetLagCompensation()->ShotgunServerScoreRequest(
 					HitCharacters,

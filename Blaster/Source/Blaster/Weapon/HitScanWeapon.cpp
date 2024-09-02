@@ -33,7 +33,9 @@ void AHitScanWeapon::Fire(const FVector& HitTarget)
 		ABlasterCharacter* BlasterCharacter = Cast<ABlasterCharacter>(FireHit.GetActor());
 		if (BlasterCharacter && InstigatorController)
 		{
-			if (HasAuthority() || !bUseServerSideRewind)
+			bool bCauseAuthDamage = !bUseServerSideRewind || OwnerPawn->IsLocallyControlled();
+			//On server - either as server controlled character or without SSR
+			if (HasAuthority() && bCauseAuthDamage)
 			{
 				UGameplayStatics::ApplyDamage(
 					BlasterCharacter,
@@ -43,11 +45,13 @@ void AHitScanWeapon::Fire(const FVector& HitTarget)
 					UDamageType::StaticClass()
 				);
 			}
-			else if (bUseServerSideRewind)
+			
+			//On client - as client controlled character and with SSR
+			else if (!HasAuthority() && bUseServerSideRewind && OwnerPawn->IsLocallyControlled())
 			{
 				BlasterOwnerCharacter = BlasterOwnerCharacter == nullptr ? Cast<ABlasterCharacter>(OwnerPawn) : BlasterOwnerCharacter;
 				BlasterOwnerController = BlasterOwnerController == nullptr ? Cast<ABlasterPlayerController>(InstigatorController) : BlasterOwnerController;
-				if (BlasterOwnerController && BlasterOwnerCharacter && BlasterOwnerCharacter->GetLagCompensation() && BlasterOwnerCharacter->IsLocallyControlled())
+				if (BlasterOwnerController && BlasterOwnerCharacter && BlasterOwnerCharacter->GetLagCompensation())
 				{
 					BlasterOwnerCharacter->GetLagCompensation()->ServerScoreRequest(
 						BlasterCharacter,
@@ -57,7 +61,9 @@ void AHitScanWeapon::Fire(const FVector& HitTarget)
 						this
 					);
 				}
-			}		
+			}
+
+			//Otherwise do nothing - damage will be taken care of elsewhere
 		}
 		if (ImpactParticles)
 		{

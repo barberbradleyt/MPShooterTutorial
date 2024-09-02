@@ -16,6 +16,19 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void Destroyed() override;
 
+	/**
+	* Used with server-side rewind
+	*/
+
+	bool bUseServerSideRewind = false;
+	FVector_NetQuantize TraceStart;
+	FVector_NetQuantize100 InitialVelocity;
+
+	UPROPERTY(EditAnywhere)
+	float InitialSpeed = 30000.f;
+
+	float Damage = 20.f;
+
 protected:
 	virtual void BeginPlay() override;
 	void StartDestroyTimer();
@@ -25,9 +38,6 @@ protected:
 
 	UFUNCTION()
 	virtual void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
-	UPROPERTY(EditAnywhere)
-	float Damage = 20.f;
 
 	UPROPERTY(EditAnywhere)
 	class UParticleSystem* ImpactParticles;
