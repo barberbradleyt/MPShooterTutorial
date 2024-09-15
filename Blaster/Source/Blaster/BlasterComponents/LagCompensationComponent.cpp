@@ -79,15 +79,6 @@ FServerSideRewindResult ULagCompensationComponent::ConfirmHit(
 	//TODO refactor
 	if (ConfirmHitResult.bBlockingHit) // Hit head, return early
 	{
-		if (ConfirmHitResult.Component.IsValid())
-		{
-			UBoxComponent* Box = Cast<UBoxComponent>(ConfirmHitResult.Component);
-			if (Box)
-			{
-				DrawDebugBox(GetWorld(), Box->GetComponentLocation(), Box->GetScaledBoxExtent(), FQuat(Box->GetComponentRotation()), FColor::Yellow, false, 8.f);
-			}
-		}
-
 		ResetHitBoxes(Package.Character, CurrentFrame);
 		EnableCharacterMeshCollision(Package.Character, ECollisionEnabled::QueryAndPhysics);
 		return FServerSideRewindResult{ true, true };
@@ -111,15 +102,6 @@ FServerSideRewindResult ULagCompensationComponent::ConfirmHit(
 		);
 		if (ConfirmHitResult.bBlockingHit) 
 		{
-			if (ConfirmHitResult.Component.IsValid())
-			{
-				UBoxComponent* Box = Cast<UBoxComponent>(ConfirmHitResult.Component);
-				if (Box)
-				{
-					DrawDebugBox(GetWorld(), Box->GetComponentLocation(), Box->GetScaledBoxExtent(), FQuat(Box->GetComponentRotation()), FColor::Turquoise, false, 8.f);
-				}
-			}
-
 			ResetHitBoxes(Package.Character, CurrentFrame);
 			EnableCharacterMeshCollision(Package.Character, ECollisionEnabled::QueryAndPhysics);
 			return FServerSideRewindResult{ true, false };
@@ -159,12 +141,9 @@ FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(
 
 	// Enable collision for the head first
 	UBoxComponent* HeadBox = Package.Character->HitCollisionBoxes[FName("head")];
-	//UE_LOG(LogTemp, Warning, TEXT("Enabling collision for %s"), *HeadBox->GetName());
 	HeadBox->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	HeadBox->SetCollisionResponseToChannel(ECC_HitBox, ECollisionResponse::ECR_Block);
-	//DrawDebugBox(GetWorld(), HeadBox->GetComponentLocation(), HeadBox->GetScaledBoxExtent(), FQuat(HeadBox->GetComponentRotation()), FColor::Silver, false, 8.f);
-
-	//UE_LOG(LogTemp, Warning, TEXT("Owner=%s"), *GetOwner()->GetName());
+	
 
 	FPredictProjectilePathParams PathParams;
 	PathParams.bTraceWithChannel = true;
@@ -176,8 +155,6 @@ FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(
 	PathParams.ProjectileRadius = 1.f;
 	PathParams.TraceChannel = ECC_HitBox;
 	PathParams.ActorsToIgnore.Add(GetOwner());
-	PathParams.DrawDebugTime = 5.f;
-	PathParams.DrawDebugType = EDrawDebugTrace::ForDuration;
 
 	/**
 	* Checking for head first to early exit without having to enable all collision boxes
@@ -186,87 +163,35 @@ FServerSideRewindResult ULagCompensationComponent::ProjectileConfirmHit(
 
 	FPredictProjectilePathResult PathResult;
 	UGameplayStatics::PredictProjectilePath(this, PathParams, PathResult);
-
-	//UE_LOG(LogTemp, Warning, TEXT("Checking for head shots"));
-	//UE_LOG(LogTemp, Warning, TEXT("PathResult.HitResult.bBlockingHit=%s"), (PathResult.HitResult.bBlockingHit ? TEXT("True") : TEXT("False")));
+	
 	if (PathResult.HitResult.bBlockingHit) // we hit the head, return early
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("Confirming head shots"));
-		if (PathResult.HitResult.Component.IsValid())
-		{
-			//UE_LOG(LogTemp, Warning, TEXT("PathResult.HitResult.Component.IsValid()"));
-			UBoxComponent* Box = Cast<UBoxComponent>(PathResult.HitResult.Component);
-			if (Box)
-			{
-				//UE_LOG(LogTemp, Warning, TEXT("Box hit for %s: owner=%s; socket=%s; fullname=%s"), *Box->GetName(), *Box->GetOwner()->GetName(), Box->GetAttachSocketName(), *Box->GetFullName());
-				DrawDebugBox(GetWorld(), Box->GetComponentLocation(), Box->GetScaledBoxExtent(), FQuat(Box->GetComponentRotation()), FColor::Yellow, false, 8.f);
-			}
-			else {
-				//UE_LOG(LogTemp, Warning, TEXT("Box not valid"));
-				//UE_LOG(LogTemp, Warning, TEXT("PathResult.HitResult.Component=%s"), *PathResult.HitResult.Component->GetName());
-			}
-		}
-		/*
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("!PathResult.HitResult.Component.IsValid()"));
-		}
-		*/
-
+	
 		ResetHitBoxes(Package.Character, CurrentFrame);
 		EnableCharacterMeshCollision(Package.Character, ECollisionEnabled::QueryAndPhysics);
 		return FServerSideRewindResult{ true, true };
 	}
 	else // didn't hit the head, check the rest of the boxes
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("Checking for body shots"));
 		for (auto& HitBoxPair : Package.Character->HitCollisionBoxes)
 		{
 			if (HitBoxPair.Value != nullptr)
 			{
-				//UE_LOG(LogTemp, Warning, TEXT("Enabling collision for %s:%s"), *HitBoxPair.Key.ToString(), *HitBoxPair.Value->GetName());
 				HitBoxPair.Value->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				HitBoxPair.Value->SetCollisionResponseToChannel(ECC_HitBox, ECollisionResponse::ECR_Block);
-				//DrawDebugBox(GetWorld(), HitBoxPair.Value->GetComponentLocation(), HitBoxPair.Value->GetScaledBoxExtent(), FQuat(HitBoxPair.Value->GetComponentRotation()), FColor::Silver, false, 8.f);
 			}
 		}
 
 		UGameplayStatics::PredictProjectilePath(this, PathParams, PathResult);
 
-		//UE_LOG(LogTemp, Warning, TEXT("PathResult.HitResult.bBlockingHit=%s"), (PathResult.HitResult.bBlockingHit ? TEXT("True") : TEXT("False")));
 		if (PathResult.HitResult.bBlockingHit)
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("Confirming body hits"));
-			if (PathResult.HitResult.Component.IsValid())
-			{
-				//UE_LOG(LogTemp, Warning, TEXT("PathResult.HitResult.Component.IsValid()"));
-				UBoxComponent* Box = Cast<UBoxComponent>(PathResult.HitResult.Component);
-				if (Box)
-				{
-					//UE_LOG(LogTemp, Warning, TEXT("Box hit for %s"), *Box->GetName());
-					DrawDebugBox(GetWorld(), Box->GetComponentLocation(), Box->GetScaledBoxExtent(), FQuat(Box->GetComponentRotation()), FColor::Turquoise, false, 8.f);
-				}
-				/*
-				else {
-					UE_LOG(LogTemp, Warning, TEXT("Box not valid"));
-					UE_LOG(LogTemp, Warning, TEXT("PathResult.HitResult.Component=%s"), *PathResult.HitResult.Component->GetName());
-				}
-				*/
-			}
-			/*
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("!PathResult.HitResult.Component.IsValid()"));
-			}
-			*/
-
 			ResetHitBoxes(Package.Character, CurrentFrame);
 			EnableCharacterMeshCollision(Package.Character, ECollisionEnabled::QueryAndPhysics);
 			return FServerSideRewindResult{ true, false };
 		}
 		else
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("No body hits"));
 			ResetHitBoxes(Package.Character, CurrentFrame);
 			EnableCharacterMeshCollision(Package.Character, ECollisionEnabled::QueryAndPhysics);
 			return FServerSideRewindResult{ false, false };
@@ -321,15 +246,6 @@ FShotgunServerSideRewindResult ULagCompensationComponent::ShotgunConfirmHit(
 		ABlasterCharacter* BlasterCharacter = Cast<ABlasterCharacter>(ConfirmHitResult.GetActor());
 		if (BlasterCharacter)
 		{
-			if (ConfirmHitResult.Component.IsValid())
-			{
-				UBoxComponent* Box = Cast<UBoxComponent>(ConfirmHitResult.Component);
-				if (Box)
-				{
-					DrawDebugBox(GetWorld(), Box->GetComponentLocation(), Box->GetScaledBoxExtent(), FQuat(Box->GetComponentRotation()), FColor::Yellow, false, 8.f);
-				}
-			}
-
 			if (ShotgunResult.HeadShots.Contains(BlasterCharacter))
 			{
 				ShotgunResult.HeadShots[BlasterCharacter]++;
@@ -371,14 +287,6 @@ FShotgunServerSideRewindResult ULagCompensationComponent::ShotgunConfirmHit(
 		ABlasterCharacter* BlasterCharacter = Cast<ABlasterCharacter>(ConfirmHitResult.GetActor());
 		if (BlasterCharacter)
 		{
-			if (ConfirmHitResult.Component.IsValid())
-			{
-				UBoxComponent* Box = Cast<UBoxComponent>(ConfirmHitResult.Component);
-				if (Box)
-				{
-					DrawDebugBox(GetWorld(), Box->GetComponentLocation(), Box->GetScaledBoxExtent(), FQuat(Box->GetComponentRotation()), FColor::Turquoise, false, 8.f);
-				}
-			}
 			if (ShotgunResult.BodyShots.Contains(BlasterCharacter))
 			{
 				ShotgunResult.BodyShots[BlasterCharacter]++;
