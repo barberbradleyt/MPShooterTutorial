@@ -82,6 +82,7 @@ void ABlasterGameMode::PlayerEliminated(class ABlasterCharacter* EliminatedChara
 	
 	ABlasterGameState* BlasterGameState = GetGameState<ABlasterGameState>();
 
+	// TODO: Refactor the null check shinanigans
 	if (AttackerPlayerState && AttackerPlayerState != VictimPlayerState && BlasterGameState)
 	{
 
@@ -124,6 +125,18 @@ void ABlasterGameMode::PlayerEliminated(class ABlasterCharacter* EliminatedChara
 	if (EliminatedCharacter)
 	{
 		EliminatedCharacter->Eliminate(false);
+	}
+
+	if (AttackerPlayerState && VictimPlayerState)
+	{
+		for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			ABlasterPlayerController* BlasterPlayer = Cast<ABlasterPlayerController>(*Iterator);
+			if (BlasterPlayer)
+			{
+				BlasterPlayer->BroadcastElimination(AttackerPlayerState, VictimPlayerState);
+			}
+		}
 	}
 }
 

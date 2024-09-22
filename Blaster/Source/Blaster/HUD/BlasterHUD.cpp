@@ -5,10 +5,68 @@
 #include "GameFramework/PlayerController.h"
 #include "CharacterOverlay.h"
 #include "Announcement.h"
+#include "EliminationWidget.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/HorizontalBox.h"
+#include "Components/CanvasPanelSlot.h"
 
 void ABlasterHUD::BeginPlay()
 {
 	Super::BeginPlay();
+	
+}
+
+void ABlasterHUD::AddEliminationAnnouncement(FString Attacker, FString Victim)
+{
+	OwningPlayer = OwningPlayer == nullptr ? GetOwningPlayerController() : OwningPlayer;
+
+	if (OwningPlayer && EliminationAnnouncementClass)
+	{
+		UEliminationWidget* EliminationAnnouncementWidget = CreateWidget<UEliminationWidget>(OwningPlayer, EliminationAnnouncementClass);
+		if (EliminationAnnouncementWidget)
+		{
+			EliminationAnnouncementWidget->SetEliminationAnnouncementText(Attacker, Victim);
+			EliminationAnnouncementWidget->AddToViewport();
+
+			for (UEliminationWidget* Msg : EliminationMessages)
+			{
+				if (Msg && Msg->AnnouncementBox)
+				{
+					UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(Cast<UWidget>(Msg->AnnouncementBox));
+					if (CanvasSlot)
+					{
+						FVector2D Position = CanvasSlot->GetPosition();
+						FVector2D NewPosition(
+							CanvasSlot->GetPosition().X,
+							Position.Y + CanvasSlot->GetSize().Y
+						);
+						CanvasSlot->SetPosition(NewPosition);
+					}
+				}
+			}
+
+			EliminationMessages.Add(EliminationAnnouncementWidget);
+
+			FTimerHandle EliminationMsgTimer;
+			FTimerDelegate EliminationMsgDelegate;
+			EliminationMsgDelegate.BindUFunction(this, FName("EliminationAnnouncementTimerFinished"), EliminationAnnouncementWidget);
+			GetWorldTimerManager().SetTimer(
+				EliminationMsgTimer,
+				EliminationMsgDelegate,
+				EliminationAnnouncementTime,
+				false
+			);
+		}
+	}
+}
+
+void ABlasterHUD::EliminationAnnouncementTimerFinished(UEliminationWidget* MsgToRemove)
+{
+	if (MsgToRemove)
+	{
+		MsgToRemove->RemoveFromParent();
+		EliminationMessages.Remove(MsgToRemove);
+	}
 }
 
 void ABlasterHUD::AddCharacterOverlay()

@@ -34,25 +34,45 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Player Stats")
 	TSubclassOf<class UUserWidget> CharacterOverlayClass;
 	void AddCharacterOverlay();
+
 	UPROPERTY()
 	class UCharacterOverlay* CharacterOverlay;
 
 	UPROPERTY(EditAnywhere, Category = "Announcements")
 	TSubclassOf<class UUserWidget> AnnouncementClass;
-	void AddAnnouncement();
+	
 	UPROPERTY()
 	class UAnnouncement* Announcement;
+	void AddAnnouncement();
+
+	void AddEliminationAnnouncement(FString Attacker, FString Victim);
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
+
+	class APlayerController* OwningPlayer;
+
 	FHUDPackage HUDPackage;
 
 	void DrawCrosshair(UTexture2D* Texture, FVector2D ViewportCenter, FVector2D Spread, FLinearColor CrosshairsColour);
 
 	UPROPERTY(EditAnywhere)
 	float CrosshairSpreadMax = 16.f;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<class UEliminationWidget> EliminationAnnouncementClass;
+
+	UPROPERTY(EditAnywhere)
+	float EliminationAnnouncementTime = 2.5f;
+
+	UFUNCTION()
+	void EliminationAnnouncementTimerFinished(UEliminationWidget* MsgToRemove);
+
+	UPROPERTY()
+	TArray<UEliminationWidget*> EliminationMessages;
+
 public:
 	FORCEINLINE void SetHUDPackage(const FHUDPackage& Package) { HUDPackage = Package; }
 };

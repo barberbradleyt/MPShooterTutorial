@@ -43,10 +43,12 @@ void AProjectileBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 		if (OwnerController)
 		{
 			bool bCauseAuthDamage = !bUseServerSideRewind || OwnerCharacter->IsLocallyControlled();
+
 			//On server - either as server controlled character or without SSR
 			if (OwnerCharacter->HasAuthority() && bCauseAuthDamage)
 			{
-				UGameplayStatics::ApplyDamage(OtherActor, Damage, OwnerController, this, UDamageType::StaticClass());
+				const float DamageToCause = Hit.BoneName.ToString() == FString("head") ? HeadShotDamage : Damage;
+				UGameplayStatics::ApplyDamage(OtherActor, DamageToCause, OwnerController, this, UDamageType::StaticClass());
 			}
 
 			//On client - as client controlled character and with SSR
@@ -61,7 +63,6 @@ void AProjectileBullet::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, 
 						OwnerController->GetServerTime() - OwnerController->SingleTripTime);
 				}
 			}
-
 			//Otherwise do nothing - damage will be taken care of elsewhere
 		}
 	}	

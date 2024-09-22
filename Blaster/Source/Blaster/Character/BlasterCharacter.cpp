@@ -21,7 +21,6 @@
 #include "Blaster/GameMode/BlasterGameMode.h"
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
-#include "Sound/SoundCue.h"
 #include "Blaster/PlayerState/BlasterPlayerState.h"
 #include "Blaster/Weapon/WeaponTypes.h"
 #include "Components/BoxComponent.h"

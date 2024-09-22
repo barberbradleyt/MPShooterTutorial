@@ -16,6 +16,49 @@
 #include "Blaster/PlayerState/BlasterPlayerState.h"
 #include "Blaster/GameState/BlasterGameState.h"
 #include "Blaster/HUD/ReturnToMainMenu.h"
+#include "Sound/SoundCue.h"
+
+void ABlasterPlayerController::BroadcastElimination(APlayerState* Attacker, APlayerState* Victim)
+{
+	ClientEliminationAnnouncement(Attacker, Victim);
+}
+
+void ABlasterPlayerController::ClientEliminationAnnouncement_Implementation(APlayerState* Attacker, APlayerState* Victim)
+{
+	APlayerState* Self = GetPlayerState<APlayerState>();
+	if (Attacker && Victim && Self)
+	{
+		BlasterHUD = BlasterHUD == nullptr ? Cast<ABlasterHUD>(GetHUD()) : BlasterHUD;
+		if (BlasterHUD)
+		{
+			if (Attacker == Self && Victim != Self)
+			{
+				BlasterHUD->AddEliminationAnnouncement("You", Victim->GetPlayerName());
+			}
+			else if (Victim == Self && Attacker != Self)
+			{
+				BlasterHUD->AddEliminationAnnouncement(Attacker->GetPlayerName(), "You");
+			}
+			else if (Attacker == Self && Victim == Self)
+			{
+				BlasterHUD->AddEliminationAnnouncement("You", "Yourself lol");
+			}
+			else if (Attacker == Victim && Attacker != Self)
+			{
+				BlasterHUD->AddEliminationAnnouncement(Attacker->GetPlayerName(), "Themself");
+			}
+			else 
+			{
+				BlasterHUD->AddEliminationAnnouncement(Attacker->GetPlayerName(), Victim->GetPlayerName());
+			}
+		}
+	}
+
+	if (EliminationAnnouncement)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, EliminationAnnouncement, GetCharacter()->GetActorLocation());
+	}
+}
 
 void ABlasterPlayerController::BeginPlay()
 {
