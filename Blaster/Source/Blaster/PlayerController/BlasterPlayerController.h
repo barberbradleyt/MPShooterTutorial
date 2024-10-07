@@ -30,12 +30,19 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	// Team score functions
+	void HideTeamScores();
+	void InitTeamScores();
+	void SetHUDRedTeamScore(int32 RedScore);
+	void SetHUDBlueTeamScore(int32 BlueScore);
+
+
 	virtual float GetServerTime(); // synced with server world clock
 	virtual void ReceivedPlayer() override; // sync with server clock asap
-	void OnMatchStateSet(FName State);
+	void OnMatchStateSet(FName State, bool bTeamsMatch = false);
 
 	// TODO this can probs be private
-	void HandleMatchHasStarted();
+	void HandleMatchHasStarted(bool bTeamsMatch = false);
 	void HandleCooldown();
 	float SingleTripTime = 0.f;
 
@@ -74,7 +81,7 @@ protected:
 	void ServerCheckMatchState();
 
 	UFUNCTION(Client, Reliable)
-	void ClientJoinMidgame(FName StateOfMatch, float Warmup, float Match, float Cooldown, float StartingTime);
+	void ClientJoinMidgame(FName StateOfMatch, float Warmup, float Match, float Cooldown, float StartingTime, bool bIsTeamsMatch);
 
 	void HighPingWarning();
 	void StopHighPingWarning();
@@ -84,6 +91,12 @@ protected:
 
 	UFUNCTION(Client, Reliable)
 	void ClientEliminationAnnouncement(APlayerState* Attacker, APlayerState* Victim);
+
+	UPROPERTY(ReplicatedUsing = OnRep_ShowTeamsScores)
+	bool bShowTeamsScores = false;
+
+	UFUNCTION()
+	void OnRep_ShowTeamsScores();
 
 private:
 	UPROPERTY()
