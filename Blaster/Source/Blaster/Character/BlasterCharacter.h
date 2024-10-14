@@ -188,7 +188,7 @@ private:
 	class ULagCompensationComponent* LagCompensation;
 
 	/**
-	* 
+	*
 	*/
 
 	UFUNCTION(Server, Reliable)
@@ -248,7 +248,7 @@ private:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Player Stats")
 	float MaxHealth = 100.f;
-	
+
 	UPROPERTY(ReplicatedUsing = OnRep_Health, EditAnywhere, Category = "Player Stats")
 	float Health = 100.f;
 
@@ -288,7 +288,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	UTimelineComponent* DissolveTimeline;
-	
+
 	FOnTimelineFloat DissolveTrack;
 
 	UPROPERTY(EditAnywhere)
@@ -296,7 +296,7 @@ private:
 
 	UFUNCTION()
 	void UpdateDissolveMaterial(float DissolveValue);
-	
+
 	void StartDissolve();
 
 	// Dynamic instance that we can change at runtime
@@ -393,4 +393,5 @@ public:
 	FORCEINLINE UBuffComponent* GetBuff() const { return Buff; }
 	bool IsLocallyReloading();
 	FORCEINLINE ULagCompensationComponent* GetLagCompensation() const { return LagCompensation; }
+	bool IsHoldingTheFlag() const;
 };
