@@ -37,6 +37,7 @@ void UCombatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(UCombatComponent, CombatState);
 	DOREPLIFETIME(UCombatComponent, Grenades);
 	DOREPLIFETIME(UCombatComponent, bHoldingTheFlag);
+	DOREPLIFETIME(UCombatComponent, TheFlag);
 }
 
 void UCombatComponent::ShotgunShellReload()
@@ -281,9 +282,10 @@ void UCombatComponent::EquipWeapon(class AWeapon* WeaponToEquip)
 	{
 		Character->Crouch();
 		bHoldingTheFlag = true;
-		AttachFlagToLeftHand(WeaponToEquip);
 		WeaponToEquip->SetWeaponState(EWeaponState::EWS_Equipped);
+		AttachFlagToLeftHand(WeaponToEquip);
 		WeaponToEquip->SetOwner(Character);
+		TheFlag = WeaponToEquip;
 	}
 	else 
 	{
@@ -310,12 +312,12 @@ void UCombatComponent::SwapWeapons()
 
 	AWeapon* TempWeapon = EquippedWeapon;
 	EquippedWeapon = SecondaryWeapon;
-	SecondaryWeapon = TempWeapon;	
+	SecondaryWeapon = TempWeapon;
 }
 
 bool UCombatComponent::ShouldSwapWeapons()
 {
-	return(EquippedWeapon != nullptr && SecondaryWeapon != nullptr);
+	return(EquippedWeapon != nullptr && SecondaryWeapon != nullptr && !bHoldingTheFlag);
 }
 
 void UCombatComponent::EquipPrimaryWeapon(AWeapon* WeaponToEquip)
@@ -943,5 +945,18 @@ void UCombatComponent::OnRep_HoldingTheFlag()
 	if (bHoldingTheFlag && Character && Character->IsLocallyControlled())
 	{
 		Character->Crouch();
+	}
+}
+
+void UCombatComponent::OnRep_Flag()
+{
+	if (TheFlag && Character)
+	{
+		TheFlag->SetWeaponState(EWeaponState::EWS_Equipped);
+		AttachFlagToLeftHand(TheFlag);
+		Character->GetCharacterMovement()->bOrientRotationToMovement = false;
+		Character->bUseControllerRotationYaw = true;
+		// TODO Add flag equip sound
+		// PlayEquippedFlagSound(TheFlag);
 	}
 }

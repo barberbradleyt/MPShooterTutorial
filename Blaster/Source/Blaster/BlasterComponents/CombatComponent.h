@@ -91,6 +91,8 @@ protected:
 	void EquipPrimaryWeapon(AWeapon* WeaponToEquip);
 	void EquipSecondaryWeapon(AWeapon* WeaponToEquip);
 	void ShowAttachedGrenade(bool bShowGrenade);
+	UFUNCTION()
+	void OnRep_Flag();
 
 private:
 	UPROPERTY()
@@ -222,6 +224,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_HoldingTheFlag();
+
+	UPROPERTY(ReplicatedUsing = OnRep_Flag)
+	AWeapon* TheFlag;
 
 public:
 	FORCEINLINE int32 GetGrenades() const { return Grenades; };

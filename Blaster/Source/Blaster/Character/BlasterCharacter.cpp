@@ -59,6 +59,7 @@ ABlasterCharacter::ABlasterCharacter()
 	LagCompensation = CreateDefaultSubobject<ULagCompensationComponent>(TEXT("LagCompensationComponent"));
 	
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
+	GetCharacterMovement()->bCanWalkOffLedgesWhenCrouching = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 0.f, 850.f);
 	GetMesh()->SetCollisionObjectType(ECC_SkeletalMesh);
 	GetMesh()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
@@ -314,6 +315,10 @@ void ABlasterCharacter::DropOrDestroyWeapons()
 		if (Combat->SecondaryWeapon)
 		{
 			DropOrDestroyWeapon(Combat->SecondaryWeapon);
+		}
+		if (Combat->TheFlag)
+		{
+			Combat->TheFlag->Dropped();
 		}
 	}
 }
@@ -584,6 +589,7 @@ void ABlasterCharacter::GrenadeButtonPressed()
 {
 	if (Combat)
 	{
+		if (Combat->bHoldingTheFlag) return;
 		Combat->ThrowGrenade();
 	}
 }
@@ -673,9 +679,9 @@ void ABlasterCharacter::EquipButtonPressed()
 	if (Combat)
 	{
 		if (Combat->CombatState == ECombatState::ECS_Unoccupied) ServerEquipButtonPressed();
-		bool bSwap = Combat->ShouldSwapWeapons() && 
-			!HasAuthority() && 
-			Combat->CombatState == ECombatState::ECS_Unoccupied && 
+		bool bSwap = Combat->ShouldSwapWeapons() &&
+			!HasAuthority() &&
+			Combat->CombatState == ECombatState::ECS_Unoccupied &&
 			OverlappingWeapon == nullptr;
 		if (bSwap)
 		{
@@ -691,7 +697,12 @@ void ABlasterCharacter::ServerEquipButtonPressed_Implementation()
 {
 	if (Combat)
 	{
-		if (OverlappingWeapon)
+		if (Combat->bHoldingTheFlag) {
+			Combat->TheFlag->Dropped();
+			Combat->TheFlag = nullptr;
+			Combat->bHoldingTheFlag = false;
+		}
+		else if (OverlappingWeapon)
 		{
 			Combat->EquipWeapon(OverlappingWeapon);
 		}
@@ -705,6 +716,7 @@ void ABlasterCharacter::ServerEquipButtonPressed_Implementation()
 
 void ABlasterCharacter::CrouchButtonPressed()
 {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bIsCrouched)
 	{
 		UnCrouch();
@@ -721,6 +733,7 @@ void ABlasterCharacter::ReloadButtonPressed()
 	if (bDisableGameplay) return;
 	if (Combat)
 	{
+		if (Combat->bHoldingTheFlag) return;
 		Combat->Reload();
 	}
 }
@@ -730,6 +743,7 @@ void ABlasterCharacter::AimButtonPressed()
 	if (bDisableGameplay) return;
 	if (Combat) 
 	{
+		if (Combat->bHoldingTheFlag) return;
 		Combat->SetAiming(true);
 	}
 }
@@ -739,6 +753,7 @@ void ABlasterCharacter::AimButtonReleased()
 	if (bDisableGameplay) return;
 	if (Combat)
 	{
+		if (Combat->bHoldingTheFlag) return;
 		Combat->SetAiming(false);
 	}
 }
@@ -830,6 +845,7 @@ void ABlasterCharacter::SimProxiesTurn()
 
 void ABlasterCharacter::Jump()
 {
+	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bIsCrouched) 
 	{
 		UnCrouch();
@@ -845,6 +861,7 @@ void ABlasterCharacter::FireButtonPressed()
 	if (bDisableGameplay) return;
 	if (Combat)
 	{
+		if (Combat->bHoldingTheFlag) return;
 		Combat->FireButtonPressed(true);
 	}
 }
@@ -854,6 +871,7 @@ void ABlasterCharacter::FireButtonReleased()
 	if (bDisableGameplay) return;
 	if (Combat)
 	{
+		if (Combat->bHoldingTheFlag) return;
 		Combat->FireButtonPressed(false);
 	}
 }
@@ -1084,4 +1102,11 @@ bool ABlasterCharacter::IsHoldingTheFlag() const
 {
 	if (Combat == nullptr) return false;
 	return Combat->bHoldingTheFlag;
+}
+
+ETeam ABlasterCharacter::GetTeam()
+{
+	BlasterPlayerState = BlasterPlayerState == nullptr ? GetPlayerState<ABlasterPlayerState>() : BlasterPlayerState;
+	if (BlasterPlayerState == nullptr) return ETeam::ET_NoTeam;
+	return BlasterPlayerState->GetTeam();
 }
