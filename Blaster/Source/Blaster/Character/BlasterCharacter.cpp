@@ -27,6 +27,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Blaster/BlasterComponents/LagCompensationComponent.h"
+#include "Blaster/PlayerStart/TeamPlayerStart.h"
 #include "Blaster/GameState/BlasterGameState.h"
 
 ABlasterCharacter::ABlasterCharacter()
@@ -319,6 +320,35 @@ void ABlasterCharacter::DropOrDestroyWeapons()
 		if (Combat->TheFlag)
 		{
 			Combat->TheFlag->Dropped();
+		}
+	}
+}
+
+void ABlasterCharacter::OnPlayerStateInitialized()
+{
+	BlasterPlayerState->AddToScore(0.f);
+	BlasterPlayerState->AddToDefeats(0);
+	SetTeamColor(BlasterPlayerState->GetTeam());
+	SetSpawnPoint();
+}
+
+void ABlasterCharacter::SetSpawnPoint()
+{
+	if (HasAuthority() && BlasterPlayerState->GetTeam() != ETeam::ET_NoTeam)
+	{
+		TArray<AActor*> AllTeamPlayerStarts;
+		UGameplayStatics::GetAllActorsOfClass(this, ATeamPlayerStart::StaticClass(), AllTeamPlayerStarts);
+		TArray<AActor*> TeamPlayerStarts = AllTeamPlayerStarts.FilterByPredicate([&](const AActor* PlayerStart) {
+			return Cast<ATeamPlayerStart>(PlayerStart)->Team == BlasterPlayerState->GetTeam();
+		});
+
+		if (TeamPlayerStarts.Num() > 0)
+		{
+			AActor* ChosenPlayerStart = TeamPlayerStarts[FMath::RandRange(0, TeamPlayerStarts.Num() - 1)];
+			SetActorLocationAndRotation(
+				ChosenPlayerStart->GetActorLocation(),
+				ChosenPlayerStart->GetActorRotation()
+			);
 		}
 	}
 }
@@ -1008,9 +1038,7 @@ void ABlasterCharacter::PollInit()
 		BlasterPlayerState = GetPlayerState<ABlasterPlayerState>();
 		if (BlasterPlayerState)
 		{
-			BlasterPlayerState->AddToScore(0.f);
-			BlasterPlayerState->AddToDefeats(0);
-			SetTeamColor(BlasterPlayerState->GetTeam());
+			OnPlayerStateInitialized();
 
 			ABlasterGameState* BlasterGameState = Cast<ABlasterGameState>(UGameplayStatics::GetGameState(this));
 			if (BlasterGameState && BlasterGameState->TopScoringPlayers.Contains(BlasterPlayerState))
