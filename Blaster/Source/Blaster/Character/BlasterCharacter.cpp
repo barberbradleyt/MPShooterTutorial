@@ -1138,3 +1138,15 @@ ETeam ABlasterCharacter::GetTeam()
 	if (BlasterPlayerState == nullptr) return ETeam::ET_NoTeam;
 	return BlasterPlayerState->GetTeam();
 }
+
+void ABlasterCharacter::SetHoldingTheFlag(bool bHolding)
+{
+	if (Combat == nullptr) return;
+
+	Combat->bHoldingTheFlag = bHolding;
+
+	if (!bHolding) {
+		// Combat->TheFlag->Dropped();
+		Combat->TheFlag = nullptr;
+	}
+}
