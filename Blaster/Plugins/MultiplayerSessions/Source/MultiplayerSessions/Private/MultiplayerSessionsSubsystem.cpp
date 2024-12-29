@@ -68,11 +68,14 @@ void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSearchResults)
 	// Find game sessions
 	if (!SessionInterface.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::FindSessions - SessionInterface not valid"));
 		return;
 	}
 
+	// Register onComplete delegate
 	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
 
+	// Build and perform search
 	LastSessionSearch = MakeShareable(new FOnlineSessionSearch());
 	LastSessionSearch->MaxSearchResults = MaxSearchResults;
 	LastSessionSearch->bIsLanQuery = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL";
@@ -81,6 +84,8 @@ void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSearchResults)
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	if (!SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), LastSessionSearch.ToSharedRef()))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::FindSessions - SessionInterface->FindSessions failed"));
+
 		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
 
 		// Broadcast our own custom delegate
@@ -93,6 +98,8 @@ void UMultiplayerSessionsSubsystem::JoinSession(const FOnlineSessionSearchResult
 	// Find game sessions
 	if (!SessionInterface.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::JoinSession - SessionInterface not valid"));
+
 		MultiplayerOnJoinSessionComplete.Broadcast(EOnJoinSessionCompleteResult::UnknownError);
 		return;
 	}
@@ -102,6 +109,8 @@ void UMultiplayerSessionsSubsystem::JoinSession(const FOnlineSessionSearchResult
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	if (!SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionResult))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::JoinSession - SessionInterface->JoinSession failed"));
+
 		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
 
 		// Broadcast our own custom delegate
@@ -113,6 +122,8 @@ void UMultiplayerSessionsSubsystem::DestroySession()
 {
 	if (!SessionInterface.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::DestroySession - SessionInterface not valid"));
+
 		// Broadcast our own custom delegate
 		MultiplayerOnDestroySessionComplete.Broadcast(false);
 		return;
@@ -122,6 +133,8 @@ void UMultiplayerSessionsSubsystem::DestroySession()
 
 	if (!SessionInterface->DestroySession(NAME_GameSession))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::DestroySession - SessionInterface->DestroySession failed"));
+
 		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
 
 		// Broadcast our own custom delegate
@@ -162,7 +175,7 @@ void UMultiplayerSessionsSubsystem::OnCreateSessionComplete(FName SessionName, b
 
 void UMultiplayerSessionsSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
 {
-	if (!SessionInterface)
+	if (SessionInterface)
 	{
 		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
 	}

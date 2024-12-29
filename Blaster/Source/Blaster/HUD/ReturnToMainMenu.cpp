@@ -43,17 +43,14 @@ void UReturnToMainMenu::MenuSetup()
 	if (GameInstance)
 	{
 		MultiplayerSessionsSubsystem = GameInstance->GetSubsystem<UMultiplayerSessionsSubsystem>();
-		if (MultiplayerSessionsSubsystem) //&& !MultiplayerSessionsSubsystem->MultiplayerOnDestroySessionComplete.IsBound())
+		if (MultiplayerSessionsSubsystem) //TODO: Why is this always bound?
 		{
 			UE_LOG(LogTemp, Verbose, TEXT("Adding MultiplayerOnDestroySessionComplete delegate"));
 			MultiplayerSessionsSubsystem->MultiplayerOnDestroySessionComplete.AddDynamic(this, &UReturnToMainMenu::OnDestroySession);
 		}
-		else if (!MultiplayerSessionsSubsystem)
+		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("MultiplayerSessionsSubsystem is null"));
-		}
-		else {
-			UE_LOG(LogTemp, Warning, TEXT("MultiplayerSessionsSubsystem->MultiplayerOnDestroySessionComplete is already bound"));
 		}
 	}
 	else
@@ -142,8 +139,8 @@ void UReturnToMainMenu::ReturnButtonClicked()
 			ABlasterCharacter* BlasterCharacter = Cast<ABlasterCharacter>(FirstPlayerController->GetPawn());
 			if (BlasterCharacter)
 			{
-				BlasterCharacter->ServerLeaveGame();
 				BlasterCharacter->OnLeftGame.AddDynamic(this, &UReturnToMainMenu::OnPlayerLeftGame);
+				BlasterCharacter->ServerLeaveGame();
 			}
 			else
 			{

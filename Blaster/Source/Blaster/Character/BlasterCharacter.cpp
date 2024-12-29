@@ -290,6 +290,11 @@ void ABlasterCharacter::ServerLeaveGame_Implementation()
 	{
 		BlasterGameMode->PlayerLeftGame(BlasterPlayerState);
 	}
+	else
+	{
+		if (BlasterGameMode == nullptr) UE_LOG(LogTemp, Warning, TEXT("ABlasterCharacter::ServerLeaveGame_Implementation - BlasterGameMode is null"));
+		if (BlasterPlayerState == nullptr) UE_LOG(LogTemp, Warning, TEXT("ABlasterCharacter::ServerLeaveGame_Implementation - BlasterPlayerState is null"));
+	}
 }
 
 void ABlasterCharacter::DropOrDestroyWeapon(AWeapon* Weapon)
