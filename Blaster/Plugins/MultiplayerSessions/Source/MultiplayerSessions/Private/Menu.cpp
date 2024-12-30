@@ -44,6 +44,7 @@ void UMenu::MenuSetup(int32 NumberOfPublicConnections, FString TypeOfMatch, FStr
 		MultiplayerSessionsSubsystem->MultiplayerOnJoinSessionComplete.AddUObject(this, &ThisClass::OnJoinSession);
 		MultiplayerSessionsSubsystem->MultiplayerOnDestroySessionComplete.AddDynamic(this, &ThisClass::OnDestroySession);
 		MultiplayerSessionsSubsystem->MultiplayerOnStartSessionComplete.AddDynamic(this, &ThisClass::OnStartSession);
+		MultiplayerSessionsSubsystem->DestroySession();
 	}
 }
 
@@ -104,8 +105,20 @@ void UMenu::OnCreateSession(bool bWasSuccessful)
 
 void UMenu::OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful)
 {
+	if (!bWasSuccessful || SessionResults.Num() <= 0)
+	{
+		if (!bWasSuccessful)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - bWasSuccessful=false; Found %d session"), SessionResults.Num());
+		}
+
+		JoinButton->SetIsEnabled(true);
+		return;
+	}
+
 	if (MultiplayerSessionsSubsystem == nullptr)
 	{
+		UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - MultiplayerSessionsSubsystem is null"));
 		return;
 	}
 
@@ -116,20 +129,41 @@ void UMenu::OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResu
 
 		if (SettingsValue == MatchType)
 		{
+			UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - Found session of match type '%s', joining..."), *MatchType);
 			MultiplayerSessionsSubsystem->JoinSession(Result);
 			return;
 		}
-	}
-
-	// TODO: This should be the first check - why do any of the stuff above if not success?
-	if (!bWasSuccessful || SessionResults.Num() <= 0)
-	{
-		JoinButton->SetIsEnabled(true);
 	}
 }
 
 void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result)
 {
+	if (Result != EOnJoinSessionCompleteResult::Success)
+	{
+		FString ResultString;
+		switch (Result) {
+		case EOnJoinSessionCompleteResult::Type::AlreadyInSession:
+			ResultString = "AlreadyInSession";
+			break;
+		case EOnJoinSessionCompleteResult::Type::CouldNotRetrieveAddress:
+			ResultString = "CouldNotRetrieveAddress";
+			break;
+		case EOnJoinSessionCompleteResult::Type::SessionDoesNotExist:
+			ResultString = "SessionDoesNotExist";
+			break;
+		case EOnJoinSessionCompleteResult::Type::SessionIsFull:
+			ResultString = "SessionIsFull";
+			break;
+		case EOnJoinSessionCompleteResult::Type::UnknownError:
+		default:
+			ResultString = "SessionIsFull";
+			break;
+		}
+		UE_LOG(LogTemp, Error, TEXT("Result != EOnJoinSessionCompleteResult::Success; Result=%s"), *ResultString);
+
+		JoinButton->SetIsEnabled(true);
+	}
+
 	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
 	if (Subsystem)
 	{
@@ -144,19 +178,25 @@ void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result)
 			{
 				PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
 			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("Menu::OnJoinSession - PlayerController not valid"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Menu::OnJoinSession - SessionInterface not valid"));
 		}
 	}
-
-	// TODO: This should be the first check - why do any of the stuff above if not success?
-	if (Result != EOnJoinSessionCompleteResult::Success)
+	else
 	{
-		JoinButton->SetIsEnabled(true);
+		UE_LOG(LogTemp, Error, TEXT("Menu::OnJoinSession - OnlineSubsystem not valid"));
 	}
 }
 
 void UMenu::OnDestroySession(bool bWasSuccessful)
 {
-
+	
 }
 
 void UMenu::OnStartSession(bool bWasSuccessful)
