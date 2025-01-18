@@ -56,20 +56,14 @@ void AFlag::OnDropped()
 	EnableCustomDepth(true);
 }
 
-void AFlag::BeginPlay()
+void AFlag::ResetWeapon()
 {
-	Super::BeginPlay();
-	InitialTransform = GetActorTransform();
-}
-
-void AFlag::ResetFlag()
-{
+	UE_LOG(LogTemp, Error, TEXT("ResetFlag called"));
 	ABlasterCharacter* FlagBearer = Cast<ABlasterCharacter>(GetOwner());
 	if (FlagBearer)
 	{
 		FlagBearer->SetHoldingTheFlag(false);
 		FlagBearer->SetOverlappingWeapon(nullptr);
-		FlagBearer->UnCrouch();
 	}
 	
 	SetWeaponState(EWeaponState::EWS_Initial);
@@ -94,5 +88,5 @@ void AFlag::ResetFlag()
 	EnableCustomDepth(true);
 	//--
 
-	SetActorTransform(InitialTransform);
+	SetActorTransform(WeaponInitialTransform);
 }

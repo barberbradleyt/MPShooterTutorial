@@ -751,7 +751,6 @@ void ABlasterCharacter::ServerEquipButtonPressed_Implementation()
 
 void ABlasterCharacter::CrouchButtonPressed()
 {
-	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bIsCrouched)
 	{
 		UnCrouch();
@@ -880,7 +879,6 @@ void ABlasterCharacter::SimProxiesTurn()
 
 void ABlasterCharacter::Jump()
 {
-	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bIsCrouched) 
 	{
 		UnCrouch();
