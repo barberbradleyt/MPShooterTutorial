@@ -39,7 +39,6 @@ AWeapon::AWeapon()
 	AreaSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-
 	PickupWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("PickupWidget"));
 	PickupWidget->SetupAttachment(RootComponent);
 }
@@ -60,17 +59,26 @@ void AWeapon::BeginPlay()
 	AreaSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 	AreaSphere->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::OnSphereOverlap);
 	AreaSphere->OnComponentEndOverlap.AddDynamic(this, &AWeapon::OnSphereEndOverlap);
+
+	// Set initial transform for resetting weapon 
+	// TODO: currently just used if falling off map - should dropped weapons be reset after some time?
+	WeaponInitialTransform = GetActorTransform();
 	
 	if (PickupWidget)
 	{
 		PickupWidget->SetVisibility(false);
 	}
+
+	FString WeaponName = UEnum::GetDisplayValueAsText(WeaponType).ToString();
+	UE_LOG(LogTemp, Warning, TEXT("Weapon type = %s"), *WeaponName);
+
+	FString Location = GetActorLocation().ToString();
+	UE_LOG(LogTemp, Warning, TEXT("Weapon Location = %s"), *Location);
 }
 
 void AWeapon::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void AWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -228,12 +236,13 @@ void AWeapon::OnEquipped()
 	WeaponMesh->SetSimulatePhysics(false);
 	WeaponMesh->SetEnableGravity(false);
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	/*
 	if (WeaponType == EWeaponType::EWT_SubmachineGun)
 	{
 		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		WeaponMesh->SetEnableGravity(true);
 		WeaponMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	}
+	}*/
 	EnableCustomDepth(false);
 
 	BlasterOwnerCharacter = BlasterOwnerCharacter == nullptr ? Cast<ABlasterCharacter>(GetOwner()) : BlasterOwnerCharacter;
@@ -254,12 +263,13 @@ void AWeapon::OnEquippedSecondary()
 	WeaponMesh->SetSimulatePhysics(false);
 	WeaponMesh->SetEnableGravity(false);
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	/*
 	if (WeaponType == EWeaponType::EWT_SubmachineGun)
 	{
 		WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		WeaponMesh->SetEnableGravity(true);
 		WeaponMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	}
+	}*/
 	EnableCustomDepth(false);
 	
 	BlasterOwnerCharacter = BlasterOwnerCharacter == nullptr ? Cast<ABlasterCharacter>(GetOwner()) : BlasterOwnerCharacter;
@@ -384,4 +394,42 @@ FVector AWeapon::TraceEndWithScatter(const FVector& HitTarget)
 	*/
 
 	return FVector(TraceStart + ToEndLocation * SHOT_TRACE_LENGTH / ToEndLocation.Size());
+}
+
+void AWeapon::ResetWeapon()
+{
+	UE_LOG(LogTemp, Error, TEXT("ResetWeapon called"));
+	ABlasterCharacter* WeaponOwner = Cast<ABlasterCharacter>(GetOwner());
+	if (WeaponOwner) {
+		WeaponOwner->SetOverlappingWeapon(nullptr);
+	}
+
+	SetWeaponState(EWeaponState::EWS_Initial);
+	FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
+	WeaponMesh->DetachFromComponent(DetachRules);
+	SetOwner(nullptr);
+	BlasterOwnerCharacter = nullptr;
+	BlasterOwnerController = nullptr;
+
+	if (HasAuthority())
+	{
+		GetAreaSphere()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+	WeaponMesh->SetSimulatePhysics(false);
+	WeaponMesh->SetEnableGravity(false);
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	WeaponMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	WeaponMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
+	WeaponMesh->SetCustomDepthStencilValue(CUSTOM_DEPTH_BLUE);
+	WeaponMesh->MarkRenderStateDirty();
+	EnableCustomDepth(true);
+	SetActorTransform(WeaponInitialTransform);
+		
+	FString WeaponName = UEnum::GetDisplayValueAsText(WeaponType).ToString();
+	UE_LOG(LogTemp, Warning, TEXT("Weapon type = %s"), *WeaponName);
+		
+	FString Location = GetActorLocation().ToString();
+	UE_LOG(LogTemp, Warning, TEXT("Weapon Location = %s"), *Location );
+
+	UE_LOG(LogTemp, Warning, TEXT("WeaponInitialTransform = %s"), *(WeaponInitialTransform.ToString()));
 }

@@ -880,7 +880,6 @@ void ABlasterCharacter::SimProxiesTurn()
 
 void ABlasterCharacter::Jump()
 {
-	if (Combat && Combat->bHoldingTheFlag) return;
 	if (bIsCrouched) 
 	{
 		UnCrouch();

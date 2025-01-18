@@ -31,6 +31,6 @@ void AFlagZone::OnSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 		{
 			GameMode->FlagCaptured(OverlappingFlag, this);
 		}
-		OverlappingFlag->ResetFlag();
+		OverlappingFlag->ResetWeapon();
 	}
 }

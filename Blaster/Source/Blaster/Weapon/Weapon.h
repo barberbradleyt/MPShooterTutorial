@@ -43,7 +43,7 @@ public:
 	virtual void Dropped();
 	void AddAmmo(int32 AmmoToAdd);
 	FVector TraceEndWithScatter(const FVector& HitTarget);
-
+	virtual void ResetWeapon();
 	/**
 	* Textures for the weapon crosshairs
 	*/
@@ -156,6 +156,10 @@ protected:
 
 	UFUNCTION()
 	void OnPingTooHigh(bool bPingTooHigh);
+
+	// initial location and rotation for resetting weapon location
+	FTransform WeaponInitialTransform;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon Properties")
 	USkeletalMeshComponent* WeaponMesh;

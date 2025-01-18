@@ -942,10 +942,8 @@ void UCombatComponent::InitializeCarriedAmmo()
 
 void UCombatComponent::OnRep_HoldingTheFlag()
 {
-	if (bHoldingTheFlag && Character && Character->IsLocallyControlled())
-	{
-		Character->Crouch();
-	}
+	// Nothing to do here for now
+	UE_LOG(LogTemp, Warning, TEXT("HoldTheFlag changed."));
 }
 
 void UCombatComponent::OnRep_Flag()
