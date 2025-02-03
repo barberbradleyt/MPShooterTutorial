@@ -158,12 +158,18 @@ private:
 	*/
 
 	FTimerHandle FireTimer;
-	bool bCanFire = true;
+	bool bFireDelayElapsed = true;
 
 	void StartFireTimer();
 	void FireTimerFinished();
 
 	bool CanFire();
+
+	/**
+	* Reload
+	*/
+	FTimerHandle ReloadTimer;
+	void StartReloadTimer();
 
 	//Carried ammo for the currently-equipped weapon
 	UPROPERTY(ReplicatedUsing = OnRep_CarriedAmmo)
@@ -200,7 +206,7 @@ private:
 
 	void InitializeCarriedAmmo();
 
-	UPROPERTY(ReplicatedUsing = OnREp_CombatState)
+	UPROPERTY(ReplicatedUsing = OnRep_CombatState)
 	ECombatState CombatState = ECombatState::ECS_Unoccupied;
 
 	UFUNCTION()

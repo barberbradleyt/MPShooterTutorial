@@ -85,6 +85,13 @@ public:
 	bool bAutomatic = true;
 
 	/**
+	* Reload
+	*/
+
+	UPROPERTY(EditAnywhere, Category = Combat)
+	float ReloadTime = 2.f;
+
+	/**
 	* Sound Cues
 	*/
 

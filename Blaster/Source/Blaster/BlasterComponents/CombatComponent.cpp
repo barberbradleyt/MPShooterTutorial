@@ -98,7 +98,14 @@ void UCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 
 void UCombatComponent::FireButtonPressed(bool bPressed)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("FireButtonPressed(%s)"), (bPressed ? TEXT("true") : TEXT("false")));
+	/*
+	// Logging
+	UE_LOG(LogTemp, Warning, TEXT("FireButtonPressed(%s)"), (bPressed ? TEXT("true") : TEXT("false")));
+	FString CombatStateString = UEnum::GetDisplayValueAsText(CombatState).ToString();
+	FString IsReloading = bLocallyReloading ? "True" : "False";
+	FString FireDelayElapsed = bFireDelayElapsed ? "True" : "False";
+	UE_LOG(LogTemp, Warning, TEXT("[FireButtonPressed] CombatState=%s, IsLocallyReloading=%s, FireDelayElapsed=%s"), *CombatStateString, *IsReloading, *FireDelayElapsed);
+	*/
 
 	bFireButtonPressed = bPressed;
 	if (bFireButtonPressed) 
@@ -122,9 +129,10 @@ void UCombatComponent::Fire()
 	EquippedWeapon->Fire();
 	}
 	*/
+	//UE_LOG(LogTemp, Warning, TEXT("Fire() called"));
 	if (CanFire())
 	{
-		bCanFire = false;
+		bFireDelayElapsed = false;
 		if (EquippedWeapon)
 		{
 			CrosshairShootingFactor = 2.f;
@@ -145,6 +153,9 @@ void UCombatComponent::Fire()
 			}
 		}
 		StartFireTimer();
+	}
+	else {
+		//UE_LOG(LogTemp, Warning, TEXT("[Fire] can't fire"));
 	}
 }
 
@@ -173,6 +184,11 @@ void UCombatComponent::FireShotgunWeapon()
 	AShotgun* Shotgun = Cast<AShotgun>(EquippedWeapon);
 	if (Shotgun && Character)
 	{
+		// TODO: Instead, each shell load should be a loop if the reload timer. 
+		// This would allow better control over reload times and tuning them as needed
+		// as well as being more reliable since we've seen animation notifications can be dropped
+		Character->GetWorldTimerManager().ClearTimer(ReloadTimer);
+
 		TArray<FVector_NetQuantize> HitTargets; // = TArray<FVector>(); ?
 		Shotgun->MultiTraceEndWithScatter(HitTarget, HitTargets);
 		if (!Character->HasAuthority()) LocalShotgunFire(HitTargets);
@@ -184,7 +200,7 @@ void UCombatComponent::StartFireTimer()
 {
 	//UE_LOG(LogTemp, Warning, TEXT("StartFireTimer()"));
 	if (EquippedWeapon == nullptr || Character == nullptr) {
-		bCanFire = true;
+		bFireDelayElapsed = true;
 		return;
 	}
 	Character->GetWorldTimerManager().SetTimer(
@@ -198,7 +214,7 @@ void UCombatComponent::StartFireTimer()
 void UCombatComponent::FireTimerFinished()
 {
 	if (EquippedWeapon == nullptr) return;
-	bCanFire = true;
+	bFireDelayElapsed = true;
 	if (bFireButtonPressed && EquippedWeapon->bAutomatic)
 	{
 		Fire();
@@ -266,6 +282,11 @@ void UCombatComponent::LocalShotgunFire(const TArray<FVector_NetQuantize>& Trace
 	
 	if (CombatState == ECombatState::ECS_Reloading || CombatState == ECombatState::ECS_Unoccupied)
 	{
+		// TODO: Instead, each shell load should be a loop if the reload timer. 
+		// This would allow better control over reload times and tuning them as needed
+		// as well as being more reliable since we've seen animation notifications can be dropped
+		Character->GetWorldTimerManager().ClearTimer(ReloadTimer);
+
 		bLocallyReloading = false;
 		Character->PlayFireMontage(bAiming);
 		Shotgun->FireShotgun(TraceHitTargets);
@@ -546,12 +567,36 @@ void UCombatComponent::OnRep_SecondaryWeapon()
 
 void UCombatComponent::Reload()
 {
+	/* 
+	// Logging
+	UE_LOG(LogTemp, Warning, TEXT("Reload() called"));
+	FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+	FString LocallyReloading = bLocallyReloading ? "True" : "False";
+	UE_LOG(LogTemp, Warning, TEXT("[Reload] CarriedAmmo=%d, CombatStateStr=%s, LocallyReloading=%s"), CarriedAmmo, *CombatStateStr, *LocallyReloading);
+	*/
+
 	if (CarriedAmmo > 0 && CombatState == ECombatState::ECS_Unoccupied && !bLocallyReloading)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("[Reload] Reloading"));
 		ServerReload();
 		HandleReload();
 		bLocallyReloading = true;
+		//StartReloadTimer();
 	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("[Reload] Can't reload"));
+	}
+}
+
+void UCombatComponent::HandleReload()
+{
+	//UE_LOG(LogTemp, Warning, TEXT("HandleReload() called"));
+	if (Character == nullptr) {
+		UE_LOG(LogTemp, Warning, TEXT("[HandleReload] Character is null"));
+		return;
+	}
+	Character->PlayReloadMontage();
+	StartReloadTimer();
 }
 
 void UCombatComponent::ServerReload_Implementation()
@@ -560,6 +605,7 @@ void UCombatComponent::ServerReload_Implementation()
 
 	CombatState = ECombatState::ECS_Reloading;
 	if(!Character->IsLocallyControlled()) HandleReload();
+	StartReloadTimer();
 }
 
 int32 UCombatComponent::AmountToReload()
@@ -576,26 +622,86 @@ int32 UCombatComponent::AmountToReload()
 	return 0;
 }
 
+void UCombatComponent::StartReloadTimer()
+{
+	//UE_LOG(LogTemp, Warning, TEXT("StartReloadTimer()"));
+	if (EquippedWeapon == nullptr || Character == nullptr) {
+		bLocallyReloading = false;
+		return;
+	}
+	Character->GetWorldTimerManager().SetTimer(
+		ReloadTimer,
+		this,
+		&UCombatComponent::FinishReloading,
+		EquippedWeapon->ReloadTime
+	);
+}
+
 void UCombatComponent::FinishReloading()
 {
-	if (Character == nullptr) return;
+	//UE_LOG(LogTemp, Warning, TEXT("FinishReloading() called"));
 	bLocallyReloading = false;
+
+	if (Character == nullptr) 
+	{
+		// Logging
+		UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] Character==nullptr, returning"));
+		/**
+		FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+		FString LocallyReloading = bLocallyReloading ? "True" : "False";
+		FString CanFireStr = CanFire() ? "True" : "False";
+		UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] CanFire()=%s -- CombatStateStr=%s, LocallyReloading=%s"), *CanFireStr, *CombatStateStr, *LocallyReloading);
+		*/
+
+		return;
+	}
+
 	if (Character->HasAuthority())
 	{
+		/*
+		// Logging
+		UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] Character has authority, setting CombatState=ECombatState::ECS_Unoccupied"));
+		FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+		FString LocallyReloading = bLocallyReloading ? "True" : "False";
+		FString CanFireStr = CanFire() ? "True" : "False";
+		UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] CanFire()=%s -- CombatStateStr=%s, LocallyReloading=%s"), *CanFireStr, *CombatStateStr, *LocallyReloading);
+		//
+		*/
+
 		CombatState = ECombatState::ECS_Unoccupied;
+
 		UpdateAmmoValues();
 	}
 
 	if (bFireButtonPressed)
 	{
+		/*
+		// Logging
+		UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] Fire button is detected as pressed while completing FinishReloading"));
+		FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+		FString LocallyReloading = bLocallyReloading ? "True" : "False";
+		FString CanFireStr = CanFire() ? "True" : "False";
+		UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] CanFire()=%s -- CombatStateStr=%s, LocallyReloading=%s"), *CanFireStr, *CombatStateStr, *LocallyReloading);
+		*/
+
 		Fire();
 	}
+
+	/*
+	// Logging
+	FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+	FString LocallyReloading = bLocallyReloading ? "True" : "False";
+	FString CanFireStr = CanFire() ? "True" : "False";
+	UE_LOG(LogTemp, Warning, TEXT("[FinishReloading] CanFire()=%s -- CombatStateStr=%s, LocallyReloading=%s"), *CanFireStr, *CombatStateStr, *LocallyReloading);
+	*/
 }
 
 void UCombatComponent::UpdateAmmoValues()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("UpdateAmmoValues() called"));
 	if (Character == nullptr || EquippedWeapon == nullptr) return;
 	int32 ReloadAmount = AmountToReload();
+	//UE_LOG(LogTemp, Warning, TEXT("[UpdateAmmoValues] AmountToReload=%d"), ReloadAmount);
 	if (CarriedAmmoMap.Contains(EquippedWeapon->GetWeaponType()))
 	{
 		CarriedAmmoMap[EquippedWeapon->GetWeaponType()] -= ReloadAmount;
@@ -624,7 +730,7 @@ void UCombatComponent::UpdateShotgunAmmoValues()
 		Controller->SetHUDCarriedAmmo(CarriedAmmo);
 	}
 	EquippedWeapon->AddAmmo(1);
-	bCanFire = true;
+	bFireDelayElapsed = true;
 	if (EquippedWeapon->IsFull() || CarriedAmmo == 0)
 	{
 		JumpToShotgunEnd();
@@ -713,12 +819,6 @@ void UCombatComponent::ServerLaunchGrenade_Implementation(const FVector_NetQuant
 			);
 		}
 	}
-}
-
-void UCombatComponent::HandleReload()
-{
-	if (Character == nullptr) return;
-	Character->PlayReloadMontage();
 }
 
 void UCombatComponent::TraceUnderCrosshairs(FHitResult& TraceHitResult)
@@ -905,10 +1005,43 @@ void UCombatComponent::ServerSetAiming_Implementation(bool bIsAiming)
 
 bool UCombatComponent::CanFire()
 {
-	if (EquippedWeapon == nullptr) return false;
-	if (!EquippedWeapon->IsEmpty() && bCanFire && CombatState == ECombatState::ECS_Reloading && EquippedWeapon->GetWeaponType() == EWeaponType::EWT_Shotgun) return true;
-	if (bLocallyReloading) return false;
-	return !EquippedWeapon->IsEmpty() && bCanFire && CombatState == ECombatState::ECS_Unoccupied;
+	//UE_LOG(LogTemp, Warning, TEXT("CanFire() called"));
+	// Simple cases where we can't fire - no weapon, empty weapon, waiting for fire delay to elapse
+	if (EquippedWeapon == nullptr || EquippedWeapon->IsEmpty() || !bFireDelayElapsed)
+	{
+		/*
+		// Logging
+		FString EquippedWeaponStr = EquippedWeapon == nullptr ? "NULL" : UEnum::GetDisplayValueAsText(EquippedWeapon->GetWeaponType()).ToString();
+		FString WeaponIsEmpty = EquippedWeapon == nullptr ? "NULL" : (EquippedWeapon->IsEmpty() ? "True" : "False");
+		FString FireDelayElapsed = bFireDelayElapsed ? "True" : "False";
+		UE_LOG(LogTemp, Warning, TEXT("[CanFire] CanFire()=False -- EquippedWeapon=%s, WeaponIsEmpty=%s, FireDelayElapsed=%s"), *EquippedWeaponStr, *WeaponIsEmpty, *FireDelayElapsed);
+		*/
+
+		return false;
+	}
+
+	// If we're reloading (and the weapon is not empty) can only fire if the weapon is a shotgun
+	if (bLocallyReloading || CombatState == ECombatState::ECS_Reloading) 
+	{
+		/*
+		// Logging
+		FString CanFireResult = EquippedWeapon->GetWeaponType() == EWeaponType::EWT_Shotgun ? "True" : "False";
+		FString LocallyReloading = bLocallyReloading ? "True" : "False";
+		FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+		UE_LOG(LogTemp, Warning, TEXT("[CanFire] CanFire()=%s -- LocallyReloading=%s, CombatState=%s"), *CanFireResult, *LocallyReloading, *CombatStateStr);
+		*/
+
+		return EquippedWeapon->GetWeaponType() == EWeaponType::EWT_Shotgun;
+	}
+	
+	/*
+	// Logging
+	FString CanFireResult = CombatState == ECombatState::ECS_Unoccupied ? "True" : "False";
+	FString CombatStateStr = UEnum::GetDisplayValueAsText(CombatState).ToString();
+	UE_LOG(LogTemp, Warning, TEXT("[CanFire] CanFire()=%s -- CombatState=%s"), *CanFireResult, *CombatStateStr);
+	*/
+
+	return CombatState == ECombatState::ECS_Unoccupied;
 }
 
 void UCombatComponent::OnRep_CarriedAmmo()

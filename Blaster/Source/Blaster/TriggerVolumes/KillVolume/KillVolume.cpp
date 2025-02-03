@@ -38,19 +38,19 @@ void AKillVolume::KillOnOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 			if (Combat->EquippedWeapon)
 			{
 				FString WeaponType = UEnum::GetDisplayValueAsText(Combat->EquippedWeapon->GetWeaponType()).ToString();
-				UE_LOG(LogTemp, Warning, TEXT("AKillVolume::KillOnOverlap -> Equipped Weapon type= %s"), *WeaponType);
+				UE_LOG(LogTemp, Verbose, TEXT("AKillVolume::KillOnOverlap -> Equipped Weapon type= %s"), *WeaponType);
 				Combat->EquippedWeapon->ResetWeapon();
 			}
 			if (Combat->SecondaryWeapon)
 			{
 				FString WeaponType = UEnum::GetDisplayValueAsText(Combat->SecondaryWeapon->GetWeaponType()).ToString();
-				UE_LOG(LogTemp, Warning, TEXT("AKillVolume::KillOnOverlap -> Secondary Weapon type= %s"), *WeaponType);
+				UE_LOG(LogTemp, Verbose, TEXT("AKillVolume::KillOnOverlap -> Secondary Weapon type= %s"), *WeaponType);
 				Combat->SecondaryWeapon->ResetWeapon();
 			}
 			if (Combat->TheFlag)
 			{
 				FString WeaponType = UEnum::GetDisplayValueAsText(Combat->TheFlag->GetWeaponType()).ToString();
-				UE_LOG(LogTemp, Warning, TEXT("AKillVolume::KillOnOverlap -> Flag Weapon type= %s"), *WeaponType);
+				UE_LOG(LogTemp, Verbose, TEXT("AKillVolume::KillOnOverlap -> Flag Weapon type= %s"), *WeaponType);
 				Combat->TheFlag->ResetWeapon();
 			}
 		}
@@ -74,7 +74,7 @@ void AKillVolume::KillOnOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 		AWeapon* Weapon = Cast<AWeapon>(OtherActor);
 
 		FString WeaponType = UEnum::GetDisplayValueAsText(Weapon->GetWeaponType()).ToString();
-		UE_LOG(LogTemp, Warning, TEXT("AKillVolume::KillOnOverlap -> Overlapped Weapon type= %s"), *WeaponType);
+		UE_LOG(LogTemp, Verbose, TEXT("AKillVolume::KillOnOverlap -> Overlapped Weapon type= %s"), *WeaponType);
 
 		Weapon->ResetWeapon();
 	}

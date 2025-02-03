@@ -22,7 +22,6 @@
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Blaster/PlayerState/BlasterPlayerState.h"
-#include "Blaster/Weapon/WeaponTypes.h"
 #include "Components/BoxComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -441,6 +440,18 @@ void ABlasterCharacter::BeginPlay()
 	{
 		AttachedGrenade->SetVisibility(false);
 	}
+
+	if (ReloadMontage)
+	{
+		for (EWeaponType WeaponType : TEnumRange<EWeaponType>())
+		{
+			//FString WeaponType = UEnum::GetDisplayValueAsText(Weapon).ToString();
+			FName SectionName = GetAnimSectionNameByWeaponType(WeaponType);
+			int SectionIndex = ReloadMontage->GetSectionIndex(SectionName);
+			float SectionLength = ReloadMontage->GetSectionLength(SectionIndex);
+			ReloadMontageLengthMap.Add(WeaponType, SectionLength);
+		}
+	}
 }
 
 void ABlasterCharacter::Tick(float DeltaTime)
@@ -543,40 +554,57 @@ void ABlasterCharacter::PlayFireMontage(bool bAiming)
 
 void ABlasterCharacter::PlayReloadMontage()
 {
-	if (Combat == nullptr || Combat->EquippedWeapon == nullptr) return;
+	//UE_LOG(LogTemp, Warning, TEXT("PlayReloadMontage() called"));
+	if (Combat == nullptr || Combat->EquippedWeapon == nullptr) {
+		UE_LOG(LogTemp, Warning, TEXT("Combat == nullptr || Combat->EquippedWeapon == nullptr"));
+		return;
+	}
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && ReloadMontage)
 	{
-		AnimInstance->Montage_Play(ReloadMontage);
-		FName SectionName;
+		EWeaponType WeaponType =Combat->EquippedWeapon->GetWeaponType();
+		float BaseAnimationLength = *ReloadMontageLengthMap.Find(WeaponType);
+		float PlayRate = BaseAnimationLength / Combat->EquippedWeapon->ReloadTime;
 
-		switch (Combat->EquippedWeapon->GetWeaponType())
-		{
-		case EWeaponType::EWT_AssaultRifle:
-			SectionName = FName("Rifle");
-			break;
-		case EWeaponType::EWT_RocketLauncher:
-			SectionName = FName("RocketLauncher");
-			break;
-		case EWeaponType::EWT_Pistol:
-			SectionName = FName("Pistol");
-			break;
-		case EWeaponType::EWT_SubmachineGun:
-			SectionName = FName("Pistol");
-			break;
-		case EWeaponType::EWT_Shotgun:
-			SectionName = FName("Shotgun");
-			break;
-		case EWeaponType::EWT_SniperRifle:
-			SectionName = FName("SniperRifle");
-			break;
-		case EWeaponType::EWT_GrenadeLauncher:
-			SectionName = FName("RocketLauncher");
-			break;
-		}
+		//UE_LOG(LogTemp, Warning, TEXT("[PlayReloadMontage] playing reload anim for WeaponType=%s"), *WeaponType);
+		AnimInstance->Montage_Play(ReloadMontage, PlayRate);
+		FName SectionName = GetAnimSectionNameByWeaponType(WeaponType);
+
+		//UE_LOG(LogTemp, Warning, TEXT("[PlayReloadMontage] jumping to SectionName=%s"), *SectionName.ToString());
 		AnimInstance->Montage_JumpToSection(SectionName);
 	}
+}
+
+FName ABlasterCharacter::GetAnimSectionNameByWeaponType(EWeaponType WeaponType)
+{
+	FName SectionName;
+	switch (WeaponType)
+	{
+	case EWeaponType::EWT_AssaultRifle:
+		SectionName = FName("Rifle");
+		break;
+	case EWeaponType::EWT_RocketLauncher:
+		SectionName = FName("RocketLauncher");
+		break;
+	case EWeaponType::EWT_Pistol:
+		SectionName = FName("Pistol");
+		break;
+	case EWeaponType::EWT_SubmachineGun:
+		SectionName = FName("Pistol");
+		break;
+	case EWeaponType::EWT_Shotgun:
+		SectionName = FName("Shotgun");
+		break;
+	case EWeaponType::EWT_SniperRifle:
+		SectionName = FName("SniperRifle");
+		break;
+	case EWeaponType::EWT_GrenadeLauncher:
+		SectionName = FName("RocketLauncher");
+		break;
+	}
+
+	return SectionName;
 }
 
 void ABlasterCharacter::PlayEliminationMontage()
