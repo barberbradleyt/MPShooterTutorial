@@ -129,7 +129,7 @@ void UCombatComponent::Fire()
 	EquippedWeapon->Fire();
 	}
 	*/
-	UE_LOG(LogTemp, Warning, TEXT("Fire() called"));
+	//UE_LOG(LogTemp, Warning, TEXT("Fire() called"));
 	if (CanFire())
 	{
 		bFireDelayElapsed = false;
@@ -155,7 +155,7 @@ void UCombatComponent::Fire()
 		StartFireTimer();
 	}
 	else {
-		UE_LOG(LogTemp, Warning, TEXT("[Fire] can't fire"));
+		//UE_LOG(LogTemp, Warning, TEXT("[Fire] can't fire"));
 	}
 }
 

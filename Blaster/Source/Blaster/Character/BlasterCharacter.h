@@ -216,7 +216,7 @@ private:
 	UAnimMontage* ReloadMontage;
 
 	FName GetAnimSectionNameByWeaponType(EWeaponType WeaponType);
-	TMap<FString, float> ReloadMontageLengthMap;
+	TMap<EWeaponType, float> ReloadMontageLengthMap;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	UAnimMontage* HitReactMontage;

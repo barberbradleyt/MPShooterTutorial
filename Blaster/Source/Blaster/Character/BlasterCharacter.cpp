@@ -441,13 +441,12 @@ void ABlasterCharacter::BeginPlay()
 		AttachedGrenade->SetVisibility(false);
 	}
 
-	//See if we can get the animation montage section length for each weapon type
 	if (ReloadMontage)
 	{
-		for (EWeaponType Weapon : TEnumRange<EWeaponType>())
+		for (EWeaponType WeaponType : TEnumRange<EWeaponType>())
 		{
-			FString WeaponType = UEnum::GetDisplayValueAsText(Weapon).ToString();
-			FName SectionName = GetAnimSectionNameByWeaponType(Weapon);
+			//FString WeaponType = UEnum::GetDisplayValueAsText(Weapon).ToString();
+			FName SectionName = GetAnimSectionNameByWeaponType(WeaponType);
 			int SectionIndex = ReloadMontage->GetSectionIndex(SectionName);
 			float SectionLength = ReloadMontage->GetSectionLength(SectionIndex);
 			ReloadMontageLengthMap.Add(WeaponType, SectionLength);
@@ -564,13 +563,13 @@ void ABlasterCharacter::PlayReloadMontage()
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && ReloadMontage)
 	{
-		FString WeaponType = UEnum::GetDisplayValueAsText(Combat->EquippedWeapon->GetWeaponType()).ToString();
+		EWeaponType WeaponType =Combat->EquippedWeapon->GetWeaponType();
 		float BaseAnimationLength = *ReloadMontageLengthMap.Find(WeaponType);
 		float PlayRate = BaseAnimationLength / Combat->EquippedWeapon->ReloadTime;
 
 		//UE_LOG(LogTemp, Warning, TEXT("[PlayReloadMontage] playing reload anim for WeaponType=%s"), *WeaponType);
 		AnimInstance->Montage_Play(ReloadMontage, PlayRate);
-		FName SectionName = GetAnimSectionNameByWeaponType(Combat->EquippedWeapon->GetWeaponType());
+		FName SectionName = GetAnimSectionNameByWeaponType(WeaponType);
 
 		//UE_LOG(LogTemp, Warning, TEXT("[PlayReloadMontage] jumping to SectionName=%s"), *SectionName.ToString());
 		AnimInstance->Montage_JumpToSection(SectionName);
