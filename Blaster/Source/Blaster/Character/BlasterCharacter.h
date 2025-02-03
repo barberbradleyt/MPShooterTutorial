@@ -9,6 +9,7 @@
 #include "Components/TimelineComponent.h"
 #include "Blaster/BlasterTypes/CombatState.h"
 #include "Blaster/BlasterTypes/Team.h"
+#include "Blaster/Weapon/WeaponTypes.h"
 #include "BlasterCharacter.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLeftGame);
@@ -213,6 +214,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	UAnimMontage* ReloadMontage;
+
+	FName GetAnimSectionNameByWeaponType(EWeaponType WeaponType);
+	TMap<FString, float> ReloadMontageLengthMap;
 
 	UPROPERTY(EditAnywhere, Category = Combat)
 	UAnimMontage* HitReactMontage;
