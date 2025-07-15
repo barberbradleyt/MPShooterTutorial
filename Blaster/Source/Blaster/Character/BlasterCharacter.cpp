@@ -659,6 +659,8 @@ void ABlasterCharacter::GrenadeButtonPressed()
 
 void ABlasterCharacter::ReceiveDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, class AController* InstigatorController, AActor* DamageCauser)
 {
+	UE_LOG(LogTemp, Warning, TEXT("%s receiving damage from %s"), *this->GetActorNameOrLabel(), *DamageCauser->GetActorNameOrLabel());
+	UE_LOG(LogTemp, Warning, TEXT("Health=%f, Shield=%f"), Health, Shield);
 	BlasterGameMode = BlasterGameMode == nullptr ? GetWorld()->GetAuthGameMode<ABlasterGameMode>() : BlasterGameMode;
 	if (bEliminated || BlasterGameMode == nullptr) return;
 
