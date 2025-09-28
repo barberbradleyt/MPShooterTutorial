@@ -17,6 +17,11 @@ void ALobbyGameMode::PostLogin(APlayerController* NewPlayer)
 		UMultiplayerSessionsSubsystem* Subsystem = GameInstance->GetSubsystem<UMultiplayerSessionsSubsystem>();
 		check(Subsystem);
 
+		FString* LobbyCode = Subsystem->DesiredMatchProperties.Find(FName("LobbyCode"));
+		if (LobbyCode) {
+			UE_LOG(LogTemp, Warning, TEXT("LobbyCode=%s"), **LobbyCode);
+		}
+
 		if (NumberOfPlayers == Subsystem->DesiredNumPublicConnections)
 		{
 			UWorld* World = GetWorld();
@@ -24,7 +29,8 @@ void ALobbyGameMode::PostLogin(APlayerController* NewPlayer)
 			{
 				bUseSeamlessTravel = true;
 
-				FString MatchType = Subsystem->DesiredMatchType;
+				TMap<FName, FString> MatchProperties = Subsystem->DesiredMatchProperties;
+				FString MatchType = *MatchProperties.Find(MATCH_TYPE_PROPERTY);
 				if (MatchType == "FreeForAll")
 				{
 					World->SeamlessTravel(FString("/Game/Maps/BlasterMap?listen"), true);

@@ -145,7 +145,7 @@ void UReturnToMainMenu::ReturnButtonClicked()
 			else
 			{
 				UE_LOG(LogTemp, Warning, TEXT("BlasterCharacter is null"));
-				ReturnButton->SetIsEnabled(true);
+				FirstPlayerController->ClientReturnToMainMenuWithTextReason(FText());
 			}
 		}
 		else

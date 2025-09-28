@@ -30,8 +30,8 @@ public:
 	//
 	// To handle session functionality. The Menu class will call these
 	//
-	void CreateSession(int32 NumPublicConnections, FString MatchType);
-	void FindSessions(int32 MaxSearchResults);
+	void CreateSession(int32 NumPublicConnections, TMap<FName, FString> MatchProperties, bool IsPrivate);
+	void FindSessions(int32 MaxSearchResults, TMap<FName, FString> SearchProperties);
 	void JoinSession(const FOnlineSessionSearchResult& SessionResult);
 	void DestroySession();
 	void StartSession();
@@ -49,7 +49,8 @@ public:
 	// Match settings
 	//
 	int32 DesiredNumPublicConnections{};
-	FString DesiredMatchType{};
+	TMap<FName, FString> DesiredMatchProperties{};
+	bool DesiredIsPrivate{};
 
 protected:
 
@@ -62,6 +63,7 @@ protected:
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 	void OnDestroySessionComplete(FName SessionName, bool bWasSuccessful);
 	void OnStartSessionComplete(FName SessionName, bool bWasSuccessful);
+	void OnSessionUserInviteAccepted(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& Result);
 
 private:
 	IOnlineSessionPtr SessionInterface;
@@ -87,7 +89,14 @@ private:
 	FOnStartSessionCompleteDelegate StartSessionCompleteDelegate;
 	FDelegateHandle StartSessionCompleteDelegateHandle;
 
+	FOnSessionUserInviteAcceptedDelegate SessionInviteAcceptedDelegate;
+	FDelegateHandle SessionInviteAcceptedDelegateHandle;
+
+	/*
+	* For cleaning up exisitng sessions before creating a new session
+	*/
 	bool bCreateSessionOnDestroy{ false };
 	int32 LastNumPublicConnections;
-	FString LastMatchType;
+	TMap<FName, FString> LastMatchProperties;
+	bool LastIsPrivate;
 };

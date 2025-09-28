@@ -2,19 +2,19 @@
 
 
 #include "Menu.h"
-#include "Components/Button.h"
 #include "MultiplayerSessionsSubsystem.h"
 #include "OnlineSubsystem.h"
-#include "OnlineSessionSettings.h"
 
-void UMenu::MenuSetup(int32 NumberOfPublicConnections, FString TypeOfMatch, FString LobbyPath)
+void UMenu::MenuSetup(TMap<FName, FString> InMatchProperties, TMap<FName, FString> InDefaultSearchProperties, int32 NumberOfPublicConnections, bool InIsPrivate, FString LobbyPath)
 {
 	PathToLobby = FString::Printf(TEXT("%s?listen"), *LobbyPath);
 	NumPublicConnections = NumberOfPublicConnections;
-	MatchType = TypeOfMatch;
+	MatchProperties = InMatchProperties;
+	DefaultSearchProperties = InDefaultSearchProperties;
+	IsPrivate = InIsPrivate;
 	AddToViewport();
 	SetVisibility(ESlateVisibility::Visible);
-	bIsFocusable = true;
+	SetIsFocusable(true);
 
 	UWorld* World = GetWorld();
 	if (World)
@@ -55,21 +55,15 @@ bool UMenu::Initialize()
 		return false;
 	}
 
-	if (HostButton)
-	{
-		HostButton->OnClicked.AddDynamic(this, &UMenu::HostButtonClicked);
-	}
-
-	if (JoinButton)
-	{
-		JoinButton->OnClicked.AddDynamic(this, &UMenu::JoinButtonClicked);
-	}
+	LastFindSessionResults = TMap<FString, FOnlineSessionSearchResult>();
+	DisplaySessionResults = TArray<FSessionResult>();
 
 	return true;
 }
 
 void UMenu::OnCreateSession(bool bWasSuccessful)
 {
+	OnCreateSession_BP(bWasSuccessful);
 	if (bWasSuccessful)
 	{
 		if (GEngine)
@@ -90,7 +84,6 @@ void UMenu::OnCreateSession(bool bWasSuccessful)
 	}
 	else
 	{
-		HostButton->SetIsEnabled(true);
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(
@@ -105,35 +98,64 @@ void UMenu::OnCreateSession(bool bWasSuccessful)
 
 void UMenu::OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful)
 {
-	if (!bWasSuccessful || SessionResults.Num() <= 0)
+	bool Debugging = false;
+
+	OnFindSessions_BP(bWasSuccessful);
+	if (!Debugging && (!bWasSuccessful || SessionResults.Num() <= 0))
 	{
+
 		if (!bWasSuccessful)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - bWasSuccessful=false; Found %d session"), SessionResults.Num());
+			UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - bWasSuccessful=false; Found %d sessions"), SessionResults.Num());
 		}
-
-		JoinButton->SetIsEnabled(true);
-		return;
-	}
-
-	if (MultiplayerSessionsSubsystem == nullptr)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - MultiplayerSessionsSubsystem is null"));
-		return;
-	}
-
-	for (auto Result : SessionResults)
-	{
-		FString SettingsValue;
-		Result.Session.SessionSettings.Get(FName("MatchType"), SettingsValue);
-
-		if (SettingsValue == MatchType)
+		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - Found session of match type '%s', joining..."), *MatchType);
-			MultiplayerSessionsSubsystem->JoinSession(Result);
-			return;
+			UE_LOG(LogTemp, Error, TEXT("Menu::OnFindSessions - bWasSuccessful=true; Found %d sessions"), SessionResults.Num());
+		}
+
+		return;
+	}
+
+	LastFindSessionResults.Empty();
+	DisplaySessionResults.Empty();
+	for (auto Result : SessionResults) {
+		if (Result.IsValid()) {
+
+			FString ResultIdStr = Result.GetSessionIdStr();
+			UE_LOG(LogTemp, Warning, TEXT("Adding ResultIdStr %s to LastFindSessionResults Map"), *ResultIdStr);
+			LastFindSessionResults.Add(Result.GetSessionIdStr(), Result);
+
+			FSessionResult SessionResult = FSessionResult();
+			SessionResult.SessionIdStr = Result.GetSessionIdStr();
+			SessionResult.OwnerUserName = Result.Session.OwningUserName;
+			SessionResult.Ping = Result.PingInMs;
+			SessionResult.OpenPublicConnections = Result.Session.NumOpenPublicConnections;
+			SessionResult.TotalPublicConnections = Result.Session.SessionSettings.NumPublicConnections;
+			DisplaySessionResults.Add(SessionResult);
 		}
 	}
+	TArray<FString> Keys;
+	LastFindSessionResults.GetKeys(Keys);
+	 
+	// debugging 
+	if (Debugging)
+	{
+		int DebugSessionsToAdd = 4;
+
+		for (int i = 0; i < DebugSessionsToAdd; i++) {
+			FSessionResult SessionResult = FSessionResult();
+			FString iStr = FString::FormatAsNumber(i);
+			SessionResult.SessionIdStr = "Test_" + iStr;
+			SessionResult.OwnerUserName = "TestOwner_" + iStr;
+			SessionResult.OpenPublicConnections = 2;
+			SessionResult.TotalPublicConnections = 4;
+			SessionResult.Ping = 100;
+			DisplaySessionResults.Add(SessionResult);
+		}
+	}
+
+	// Notify implementing Blueprint classes that the search results are available to display
+	OnSessionResultsAvailable();
 }
 
 void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result)
@@ -159,10 +181,12 @@ void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result)
 			ResultString = "SessionIsFull";
 			break;
 		}
+		OnJoinSession_BP(ResultString);
 		UE_LOG(LogTemp, Error, TEXT("Result != EOnJoinSessionCompleteResult::Success; Result=%s"), *ResultString);
 
-		JoinButton->SetIsEnabled(true);
+		return;
 	}
+	OnJoinSession_BP("Success");
 
 	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
 	if (Subsystem)
@@ -204,23 +228,61 @@ void UMenu::OnStartSession(bool bWasSuccessful)
 
 }
 
-void UMenu::HostButtonClicked()
-{
-	// TODO: Both should be disabled/re-enabled
-	HostButton->SetIsEnabled(false);
-	if (MultiplayerSessionsSubsystem)
-	{
-		MultiplayerSessionsSubsystem->CreateSession(NumPublicConnections, MatchType);
+void UMenu::JoinSessionByIdStr(const FString& SessionIdStr) {
+
+	TArray<FString> Keys;
+	LastFindSessionResults.GetKeys(Keys);
+
+	UE_LOG(LogTemp, Warning, TEXT("Joining Session By ID Str: %s"), *SessionIdStr);
+	if (LastFindSessionResults.Contains(*SessionIdStr)) {
+		FOnlineSessionSearchResult* SessionToJoin = LastFindSessionResults.Find(*SessionIdStr);
+
+		FString SessionIdStr = SessionToJoin->GetSessionIdStr();
+		UE_LOG(LogTemp, Warning, TEXT("Found Session: %s, joining..."), &SessionIdStr);
+
+		JoinSession(SessionToJoin);
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("No Session found for ID Str: %s"), *SessionIdStr);
 	}
 }
 
-void UMenu::JoinButtonClicked()
+void UMenu::HostSession()
 {
-	// TODO: Both should be disabled/re-enabled
-	JoinButton->SetIsEnabled(false);
 	if (MultiplayerSessionsSubsystem)
 	{
-		MultiplayerSessionsSubsystem->FindSessions(10000);
+		MultiplayerSessionsSubsystem->CreateSession(NumPublicConnections, MatchProperties, IsPrivate);
+	}
+}
+
+void UMenu::FindSessions()
+{
+	if (MultiplayerSessionsSubsystem)
+	{
+		MultiplayerSessionsSubsystem->FindSessions(MaxSearchResults, DefaultSearchProperties);
+	}
+}
+
+void UMenu::FindSessionsByProperties(const TMap<FName, FString> SearchProperties)
+{
+	if (MultiplayerSessionsSubsystem)
+	{
+		TMap<FName, FString> AllSearchProperties = TMap<FName, FString>();
+		for (TPair<FName, FString>& Property : DefaultSearchProperties) {
+			AllSearchProperties.Add(Property);
+		}
+		for (TPair<FName, FString>& Property : SearchProperties.Array()) {
+			AllSearchProperties.Add(Property);
+		}
+		MultiplayerSessionsSubsystem->FindSessions(MaxSearchResults, AllSearchProperties);
+	}
+}
+
+void UMenu::JoinSession(FOnlineSessionSearchResult* SessionToJoin)
+{
+	if (MultiplayerSessionsSubsystem)
+	{
+		MultiplayerSessionsSubsystem->JoinSession(*SessionToJoin);
 	}
 }
 
