@@ -10,33 +10,39 @@ UMultiplayerSessionsSubsystem::UMultiplayerSessionsSubsystem():
 	FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete)),
 	JoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete)),
 	DestroySessionCompleteDelegate(FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::OnDestroySessionComplete)),
-	StartSessionCompleteDelegate(FOnStartSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnStartSessionComplete))
+	StartSessionCompleteDelegate(FOnStartSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnStartSessionComplete)),
+	SessionInviteAcceptedDelegate(FOnSessionUserInviteAcceptedDelegate::CreateUObject(this, &ThisClass::OnSessionUserInviteAccepted))
 {
 	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
 	if (Subsystem)
 	{
 		SessionInterface = Subsystem->GetSessionInterface();
+
+		// Register on invite accepted delegate to handle session invites
+		SessionInviteAcceptedDelegateHandle = SessionInterface->AddOnSessionUserInviteAcceptedDelegate_Handle(SessionInviteAcceptedDelegate);
 	}
 }
 
-void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FString MatchType)
+void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, TMap<FName, FString> MatchProperties, bool IsPrivate)
 {
-	DesiredNumPublicConnections = NumPublicConnections;
-	DesiredMatchType = MatchType;
-
 	if (!SessionInterface.IsValid())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::CreateSession - SessionInterface is not valid. Returning."));
 		return;
 	}
 
 	auto ExistingSession = SessionInterface->GetNamedSession(NAME_GameSession);
 	if (ExistingSession != nullptr)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::CreateSession - Existing session found (%s). Destroying."), *ExistingSession->GetSessionIdStr());
+
 		bCreateSessionOnDestroy = true;
 		LastNumPublicConnections = NumPublicConnections;
-		LastMatchType = MatchType;
+		LastMatchProperties = MatchProperties;
+		LastIsPrivate = IsPrivate;
 
 		DestroySession();
+		// TODO: Should this return?
 	}
 
 	// Store the delegate in a FDelegateHandle so we can later remove it from the delegate list
@@ -44,14 +50,35 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 
 	LastSessionSettings = MakeShareable(new FOnlineSessionSettings());
 	LastSessionSettings->bIsLANMatch = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL";
-	LastSessionSettings->NumPublicConnections = NumPublicConnections;
 	LastSessionSettings->bAllowJoinInProgress = true;
-	LastSessionSettings->bAllowJoinViaPresence = true;
-	LastSessionSettings->bShouldAdvertise = true;
 	LastSessionSettings->bUsesPresence = true;
 	LastSessionSettings->bUseLobbiesIfAvailable = true;
-	LastSessionSettings->Set(FName("MatchType"), MatchType, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-	LastSessionSettings->BuildUniqueId = 1;
+	LastSessionSettings->NumPublicConnections = NumPublicConnections;
+	LastSessionSettings->bAllowInvites = true;
+
+	// Additional properties
+	for (TPair<FName, FString>& Property : MatchProperties) {
+		LastSessionSettings->Set(Property.Key, Property.Value, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	}
+
+	// Match privacy
+	if (IsPrivate) {
+		// Fiends-Only match
+		LastSessionSettings->bAllowJoinViaPresenceFriendsOnly = true;
+	}
+	else {
+		// Public match
+		LastSessionSettings->bShouldAdvertise = true;
+		LastSessionSettings->bAllowJoinViaPresence = true;
+	}
+	//LastSessionSettings->bShouldAdvertise = true;
+
+	srand(FDateTime::UtcNow().GetMillisecond());
+	LastSessionSettings->BuildUniqueId = rand();
+
+	DesiredMatchProperties = MatchProperties;
+	DesiredNumPublicConnections = NumPublicConnections;
+	DesiredIsPrivate = IsPrivate;
 
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	if (!SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *LastSessionSettings))
@@ -63,7 +90,7 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 	}
 }
 
-void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSearchResults)
+void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSearchResults, TMap<FName, FString> SearchProperties)
 {
 	// Find game sessions
 	if (!SessionInterface.IsValid())
@@ -80,6 +107,10 @@ void UMultiplayerSessionsSubsystem::FindSessions(int32 MaxSearchResults)
 	LastSessionSearch->MaxSearchResults = MaxSearchResults;
 	LastSessionSearch->bIsLanQuery = IOnlineSubsystem::Get()->GetSubsystemName() == "NULL";
 	LastSessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+
+	for (TPair<FName, FString>& Property : SearchProperties) {
+		LastSessionSearch->QuerySettings.Set(Property.Key, Property.Value, EOnlineComparisonOp::Equals);
+	}
 
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	if (!SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), LastSessionSearch.ToSharedRef()))
@@ -211,7 +242,7 @@ void UMultiplayerSessionsSubsystem::OnDestroySessionComplete(FName SessionName, 
 	if (bWasSuccessful && bCreateSessionOnDestroy)
 	{
 		bCreateSessionOnDestroy = false;
-		CreateSession(LastNumPublicConnections, LastMatchType);
+		CreateSession(LastNumPublicConnections, LastMatchProperties, LastIsPrivate);
 	}
 
 	// Broadcast our own custom delegate
@@ -227,4 +258,23 @@ void UMultiplayerSessionsSubsystem::OnStartSessionComplete(FName SessionName, bo
 
 	// Broadcast our own custom delegate
 	MultiplayerOnStartSessionComplete.Broadcast(bWasSuccessful);
+}
+
+void UMultiplayerSessionsSubsystem::OnSessionUserInviteAccepted(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& Result) {
+	if (bWasSuccessful) {
+		if (SessionInterface)
+		{
+			JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+
+			if (!SessionInterface->JoinSession(ControllerId, NAME_GameSession, Result))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("UMultiplayerSessionsSubsystem::JoinSession - SessionInterface->JoinSession failed"));
+
+				SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+
+				// Broadcast our own custom delegate
+				MultiplayerOnJoinSessionComplete.Broadcast(EOnJoinSessionCompleteResult::UnknownError);
+			}
+		}
+	}
 }

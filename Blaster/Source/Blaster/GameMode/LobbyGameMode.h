@@ -6,6 +6,8 @@
 #include "GameFramework/GameMode.h"
 #include "LobbyGameMode.generated.h"
 
+#define MATCH_TYPE_PROPERTY FName("MatchType")
+
 /**
  * 
  */
